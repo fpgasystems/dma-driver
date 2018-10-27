@@ -49,7 +49,9 @@ doc/
 *sim_netlist.v
 *sim_netlist.vhdl
 *.xdc
+*.xci
 *.vho
+*.veo
 #checkpoints
 *.dcp
 
