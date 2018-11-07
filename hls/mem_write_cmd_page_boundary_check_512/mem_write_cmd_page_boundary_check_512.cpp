@@ -31,7 +31,7 @@
 void boundary_check(hls::stream<memCmd>&			cmdIn,
 					hls::stream<memCmd>&			cmdOut,
 					hls::stream<boundCheckMeta>& metaOut,
-					ap_uint<64>				regBaseVaddr)
+					ap_uint<48>				regBaseVaddr)
 {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE=off
@@ -47,8 +47,8 @@ void boundary_check(hls::stream<memCmd>&			cmdIn,
 		if (!cmdIn.empty())
 		{
 			cmdIn.read(cmd);
-			ap_uint<64> addr = cmd.addr - regBaseVaddr;
-			ap_uint<64> page_offset = (addr & 0x1FFFFF);
+			ap_uint<48> addr = cmd.addr - regBaseVaddr;
+			ap_uint<48> page_offset = (addr & 0x1FFFFF);
 			if (page_offset + cmd.len > PAGE_SIZE)
 			{
 				newLength = PAGE_SIZE-page_offset;
@@ -316,7 +316,7 @@ void mem_write_cmd_page_boundary_check_512(	hls::stream<memCmd>&			cmdIn,
 											hls::stream<net_axis<512> >&	dataIn,
 											hls::stream<memCmd>&			cmdOut,
 											hls::stream<net_axis<512> >&	dataOut,
-											ap_uint<64>						regBaseVaddr)
+											ap_uint<48>						regBaseVaddr)
 {
 	#pragma HLS DATAFLOW
 	#pragma HLS INTERFACE ap_ctrl_none register port=return

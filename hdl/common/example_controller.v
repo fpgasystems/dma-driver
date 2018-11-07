@@ -63,7 +63,7 @@ module example_controller
     output reg[192:0]  m_axis_dma_bench_cmd_data,
     
     //on net_aclk
-    //tlb
+    //tlb on same clock
     input wire[31:0]    tlb_miss_counter,
     input wire[31:0]    tlb_boundary_crossing_counter,
 
@@ -126,6 +126,8 @@ localparam DEBUG_READ_CMD   = 8'h04;
 localparam DEBUG_READ_WORD  = 8'h05;
 localparam DEBUG_READ_PKG   = 8'h06;
 localparam DEBUG_READ_LEN   = 8'h07;
+localparam DEBUG_TLB_MISS   = 8'h08;
+localparam DEBUG_TLB_PAGE_CROSS = 8'h09;
 
 
 reg net_aresetn_reg;
@@ -228,7 +230,8 @@ reg read_en;
 reg[8:0] read_addr;
 wire[31:0] read_data;
 
-localparam NUM_DEBUG_REGS = 2;
+localparam NUM_DEBUG_REGS = 0;
+localparam NUM_DMA_DEBUG_REGS = 10;
 
 wire[8:0] next_addr = write_addr + 1;
 always @(posedge net_aclk)
@@ -241,8 +244,8 @@ begin
         write_en <= 1;
         write_addr <= write_addr + 1;
         case (next_addr)
-            0: write_data <= tlb_miss_counter;
-            1: write_data <= tlb_boundary_crossing_counter;
+            //0: write_data <= tlb_miss_counter;
+            //1: write_data <= tlb_boundary_crossing_counter;
 
             default: write_data <= 0;
         endcase
@@ -442,7 +445,7 @@ begin
                 if (read_addr == NUM_DEBUG_REGS) begin
                     read_addr <= 0;
                 end
-                if (debugRegAddr == 8) begin
+                if (debugRegAddr == NUM_DMA_DEBUG_REGS) begin
                     debugRegAddr <= 0;
                 end
             end
@@ -510,6 +513,12 @@ begin
                             end
                             DEBUG_READ_LEN: begin
                                 axil_rdata <= dma_read_length_counter[31:0];
+                            end
+                            DEBUG_TLB_MISS: begin
+                                axil_rdata <= tlb_miss_counter;
+                            end
+                            DEBUG_TLB_PAGE_CROSS: begin
+                                axil_rdata <= tlb_boundary_crossing_counter;
                             end
                             default: begin
                                 axil_rresp <= AXI_RESP_SLVERR;

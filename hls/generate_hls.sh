@@ -5,6 +5,15 @@ IP_CORES=(tlb mem_write_cmd_page_boundary_check_512 dma_bench)
 HLS_DIR="$PWD"
 
 
+if [[ $# > 0 ]]; then
+	if [ "$1" = "vcu709" ]; then
+		PART="xc7vx690tffg1761-2"
+	fi
+	if [ "$1" = "vcu118" ]; then
+		PART="xcvu9p-flga2104-2L-e"
+	fi
+fi
+
 IPREPO_DIR="${HLS_DIR}/../iprepo"
 
 if [ ! -d "$IPREPO_DIR" ]; then
@@ -15,6 +24,10 @@ fi
 
 for ip in "${IP_CORES[@]}"; do
 	eval cd ${HLS_DIR}/${ip}
+    if [ ! -z "$PART" ]; then
+		echo "Using part: ${PART}"
+		sed -i "s/set_part.*/set_part {${PART}}/" run_hls.tcl
+	fi
 	eval vivado_hls -f run_hls.tcl
 	if [ ! -d "${IPREPO_DIR}/${ip}" ]; then
 		mkdir "${IPREPO_DIR}/${ip}"

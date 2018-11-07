@@ -113,7 +113,7 @@ wire pcie_ref_clk;
 //Network signals    
 wire network_init;
 
-(* max_fanout = "64" *)  reg aresetn;
+(* max_fanout = "64" *)  reg net_aresetn;
 
 assign sfp_on = 1'b1;
 `ifdef USE_DDR
@@ -124,7 +124,7 @@ assign c1_ddr3_dm = 9'h0;
 wire pok_dram;
 assign pok_dram = 1'b1;
 `endif
-wire axi_clk;
+wire net_clk;
 wire clk_ref_200;
 
 
@@ -170,19 +170,19 @@ assign AXI_S_Stream1_TREADY = 1'b1;
  * Memory Read and Write Signals
  */
 
-(* mark_debug = "true" *)wire        axis_dma_read_cmd_tvalid;
-(* mark_debug = "true" *)wire        axis_dma_read_cmd_tready;
+wire        axis_dma_read_cmd_tvalid;
+wire        axis_dma_read_cmd_tready;
 wire[95:0]  axis_dma_read_cmd_tdata;
 
-(* mark_debug = "true" *) wire[47:0] axis_dma_read_cmd_addr;
+wire[47:0] axis_dma_read_cmd_addr;
 assign axis_dma_read_cmd_addr = axis_dma_read_cmd_tdata[47:0];
 
 
-(* mark_debug = "true" *)wire        axis_dma_write_cmd_tvalid;
-(* mark_debug = "true" *)wire        axis_dma_write_cmd_tready;
-(* mark_debug = "true" *)wire[95:0]  axis_dma_write_cmd_tdata;
+wire        axis_dma_write_cmd_tvalid;
+wire        axis_dma_write_cmd_tready;
+wire[95:0]  axis_dma_write_cmd_tdata;
 
-(* mark_debug = "true" *) wire[47:0] axis_dma_write_cmd_addr;
+wire[47:0] axis_dma_write_cmd_addr;
 assign axis_dma_write_cmd_addr = axis_dma_write_cmd_tdata[47:0];
 
 
@@ -191,7 +191,7 @@ assign axis_dma_write_cmd_addr = axis_dma_write_cmd_tdata[47:0];
  */
 adm7v3_10g_interface n10g_interface_inst (
 .reset(~perst_n | ~sfp_ready),
-.aresetn(aresetn),
+.aresetn(net_aresetn),
 .xphy_refclk_p(xphy_refclk_p),
 .xphy_refclk_n(xphy_refclk_n),
 .xphy0_txp(xphy0_txp),
@@ -233,7 +233,7 @@ adm7v3_10g_interface n10g_interface_inst (
 .axis_o_1_tready(AXI_M_Stream1_TREADY),  
 
 .sfp_tx_disable(sfp_tx_disable),
-.clk156_out(axi_clk),
+.clk156_out(net_clk),
 .clk_ref_200_out(clk_ref_200),
 .network_reset_done(network_init),
 .led());
@@ -243,28 +243,28 @@ adm7v3_10g_interface n10g_interface_inst (
  * Clock Crossing for IP addreass & Board number
  */
 axis_clock_converter_32 axis_clock_converter_ip_address (
-   .s_axis_aresetn(clk125_aresetn),  // input wire s_axis_aresetn
-   .s_axis_aclk(clk125),        // input wire s_axis_aclk
+   .s_axis_aresetn(pcie_aresetn),  // input wire s_axis_aresetn
+   .s_axis_aclk(pcie_clk),        // input wire s_axis_aclk
    .s_axis_tvalid(set_ip_addr_valid),    // input wire s_axis_tvalid
    .s_axis_tready(),    // output wire s_axis_tready
    .s_axis_tdata(set_ip_addr_data),
    
-   .m_axis_aclk(axi_clk),        // input wire m_axis_aclk
-   .m_axis_aresetn(aresetn),  // input wire m_axis_aresetn
+   .m_axis_aclk(net_clk),        // input wire m_axis_aclk
+   .m_axis_aresetn(net_aresetn),  // input wire m_axis_aresetn
    .m_axis_tvalid(net_ip_address_valid),    // output wire m_axis_tvalid
    .m_axis_tready(1'b1),    // input wire m_axis_tready
    .m_axis_tdata(net_ip_address_data)      // output wire [159 : 0] m_axis_tdata
  );
  
 axis_clock_converter_32 axis_clock_converter_board_number (
-    .s_axis_aresetn(clk125_aresetn),  // input wire s_axis_aresetn
-    .s_axis_aclk(clk125),        // input wire s_axis_aclk
+    .s_axis_aresetn(pcie_aresetn),  // input wire s_axis_aresetn
+    .s_axis_aclk(pcie_clk),        // input wire s_axis_aclk
     .s_axis_tvalid(set_board_number_valid),    // input wire s_axis_tvalid
     .s_axis_tready(),    // output wire s_axis_tready
     .s_axis_tdata(set_board_number_data),
     
-    .m_axis_aclk(axi_clk),        // input wire m_axis_aclk
-    .m_axis_aresetn(aresetn),  // input wire m_axis_aresetn
+    .m_axis_aclk(net_clk),        // input wire m_axis_aclk
+    .m_axis_aresetn(net_aresetn),  // input wire m_axis_aresetn
     .m_axis_tvalid(net_board_number_valid),    // output wire m_axis_tvalid
     .m_axis_tready(1'b1),    // input wire m_axis_tready
     .m_axis_tdata(net_board_number_data)      // output wire [159 : 0] m_axis_tdata
@@ -282,8 +282,8 @@ wire net_board_number_valid;
 wire[3:0] net_board_number_data;
 reg[3:0] board_number;
 
-always @(posedge axi_clk) begin
-    if (~aresetn) begin
+always @(posedge net_clk) begin
+    if (~net_aresetn) begin
         local_ip_address <= 32'hD1D4010B;
         board_number <= 0;
     end
@@ -305,8 +305,8 @@ wire c0_init_calib_complete;
 wire c1_init_calib_complete;
 
 // PCIe usser clock & reset
-wire clk125;
-wire clk125_aresetn;
+wire pcie_clk;
+wire pcie_aresetn;
 
 
 wire c0_ui_clk;
@@ -327,7 +327,7 @@ reg     [LED_CTR_WIDTH-1:0]           l1_ctr;
 reg     [LED_CTR_WIDTH-1:0]           l2_ctr;
 reg     [LED_CTR_WIDTH-1:0]           l3_ctr;
 
-always @(posedge axi_clk)
+always @(posedge net_clk)
 begin
     l0_ctr <= l0_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
 end
@@ -340,7 +340,7 @@ always @(posedge clk_ref_200)
 begin
     l2_ctr <= l2_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
 end
-always @(posedge clk125)
+always @(posedge pcie_clk)
 begin
     l3_ctr <= l3_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
 end
@@ -351,18 +351,18 @@ assign led[0] = network_init & pok_dram & init_calib_complete;
 assign led[1] = pcie_lnk_up;
 assign led[2] = l0_ctr[LED_CTR_WIDTH-1];
 assign led[3] = l3_ctr[LED_CTR_WIDTH-1];
-assign led[4] = perst_n & aresetn;
+assign led[4] = perst_n & net_aresetn;
 ///assign led[5] = aresetn;
 
    
-   always @(posedge axi_clk) begin
+   always @(posedge net_clk) begin
         reset156_25_n_r1 <= perst_n & pok_dram & network_init;
         reset156_25_n_r2 <= reset156_25_n_r1;
-        aresetn <= reset156_25_n_r2;
+        net_aresetn <= reset156_25_n_r2;
    end
   
-always @(posedge axi_clk) 
-    if (~aresetn) begin
+always @(posedge net_clk) 
+    if (~net_aresetn) begin
         c0_init_calib_complete_r1 <= 1'b0;
         c0_init_calib_complete_r2 <= 1'b0;
         c1_init_calib_complete_r1 <= 1'b0;
@@ -383,34 +383,54 @@ assign init_calib_complete = ddr3_calib_complete;
 /*
  * DMA Test Bench
  */
- (* mark_debug = "true" *)wire axis_bench_cmd_valid;
- (* mark_debug = "true" *)reg axis_bench_cmd_ready;
+ wire axis_bench_cmd_valid;
+ reg axis_bench_cmd_ready;
 wire[192:0] axis_bench_cmd_data;
  
- (* mark_debug = "true" *)wire axis_pcie_bench_cmd_valid;
- (* mark_debug = "true" *)wire axis_pcie_bench_cmd_ready;
- wire[192:0] axis_pcie_bench_cmd_data;
+wire axis_pcie_bench_cmd_valid;
+wire axis_pcie_bench_cmd_ready;
+wire[192:0] axis_pcie_bench_cmd_data;
  
- (* mark_debug = "true" *) wire        axis_bench_read_cmd_TVALID;
- (* mark_debug = "true" *) wire        axis_bench_read_cmd_TREADY;
- wire[95:0]  axis_bench_read_cmd_TDATA;
-(* mark_debug = "true" *) wire        axis_bench_write_cmd_TVALID;
- (* mark_debug = "true" *)wire        axis_bench_write_cmd_TREADY;
- wire[95:0]  axis_bench_write_cmd_TDATA;
+ wire        axis_bench_read_cmd_tvalid;
+ wire        axis_bench_read_cmd_tready;
+ wire[95:0]  axis_bench_read_cmd_tdata;
+wire        axis_bench_write_cmd_tvalid;
+ wire        axis_bench_write_cmd_tready;
+ wire[95:0]  axis_bench_write_cmd_tdata;
+
+ wire        axis_pcie_bench_read_cmd_tvalid;
+ wire        axis_pcie_bench_read_cmd_tready;
+ wire[95:0]  axis_pcie_bench_read_cmd_tdata;
+wire        axis_pcie_bench_write_cmd_tvalid;
+ wire        axis_pcie_bench_write_cmd_tready;
+ wire[95:0]  axis_pcie_bench_write_cmd_tdata;
+
  
-(* mark_debug = "true" *)wire   axis_bench_write_data_tvalid;
-(* mark_debug = "true" *)wire   axis_bench_write_data_tready;
+wire   axis_bench_write_data_tvalid;
+wire   axis_bench_write_data_tready;
 wire[511:0]   axis_bench_write_data_tdata;
 wire[63:0]  axis_bench_write_data_tkeep;
-(* mark_debug = "true" *)wire   axis_bench_write_data_tlast;
+wire   axis_bench_write_data_tlast;
 
-(* mark_debug = "true" *)wire   axis_bench_read_data_tvalid;
-(* mark_debug = "true" *)wire   axis_bench_read_data_tready;
+wire   axis_pcie_bench_write_data_tvalid;
+wire   axis_pcie_bench_write_data_tready;
+wire[511:0]   axis_pcie_bench_write_data_tdata;
+wire[63:0]  axis_pcie_bench_write_data_tkeep;
+wire   axis_pcie_bench_write_data_tlast;
+
+wire   axis_bench_read_data_tvalid;
+wire   axis_bench_read_data_tready;
 wire[511:0]   axis_bench_read_data_tdata;
 wire[63:0]  axis_bench_read_data_tkeep;
 wire   axis_bench_read_data_tlast;
  
-(* mark_debug = "true" *)wire execution_cycles_valid;
+ wire   axis_pcie_bench_read_data_tvalid;
+wire   axis_pcie_bench_read_data_tready;
+wire[511:0]   axis_pcie_bench_read_data_tdata;
+wire[63:0]  axis_pcie_bench_read_data_tkeep;
+wire   axis_pcie_bench_read_data_tlast;
+
+wire execution_cycles_valid;
 wire[63:0] execution_cycles_data;
 reg[63:0] dma_bench_execution_cycles;
 wire[63:0] pcie_dma_bench_execution_cycles;
@@ -418,16 +438,16 @@ wire[63:0] pcie_dma_bench_execution_cycles;
 reg[47:0] dmaBenchBaseAddr;
 reg[47:0] dmaBenchMemorySize;
 reg[31:0] dmaBenchNumberOfAccesses;
-(* mark_debug = "true" *)reg[31:0] dmaBenchChunkLength;
+reg[31:0] dmaBenchChunkLength;
 reg[31:0] dmaBenchStrideLength;
-(* mark_debug = "true" *)reg dmaBenchIsWrite;
-(* mark_debug = "true" *)reg dmaBenchStart;
+reg dmaBenchIsWrite;
+reg dmaBenchStart;
 
-(* mark_debug = "true" *) reg[63:0] debug_cycle_counter;
+reg[63:0] debug_cycle_counter;
 reg runBench;
 
-always @(posedge axi_clk) begin
-    if (~aresetn) begin
+always @(posedge net_clk) begin
+    if (~net_aresetn) begin
         axis_bench_cmd_ready <= 0;
         runBench <= 0;
     end
@@ -457,12 +477,12 @@ always @(posedge axi_clk) begin
 end
  
 dma_bench_ip dma_bench_inst(
- .m_axis_read_cmd_TVALID(axis_bench_read_cmd_TVALID),
- .m_axis_read_cmd_TREADY(axis_bench_read_cmd_TREADY),
- .m_axis_read_cmd_TDATA(axis_bench_read_cmd_TDATA),
- .m_axis_write_cmd_TVALID(axis_bench_write_cmd_TVALID),
- .m_axis_write_cmd_TREADY(axis_bench_write_cmd_TREADY),
- .m_axis_write_cmd_TDATA(axis_bench_write_cmd_TDATA),
+ .m_axis_read_cmd_TVALID(axis_bench_read_cmd_tvalid),
+ .m_axis_read_cmd_TREADY(axis_bench_read_cmd_tready),
+ .m_axis_read_cmd_TDATA(axis_bench_read_cmd_tdata),
+ .m_axis_write_cmd_TVALID(axis_bench_write_cmd_tvalid),
+ .m_axis_write_cmd_TREADY(axis_bench_write_cmd_tready),
+ .m_axis_write_cmd_TDATA(axis_bench_write_cmd_tdata),
  .m_axis_write_data_TVALID(axis_bench_write_data_tvalid),
  .m_axis_write_data_TREADY(axis_bench_write_data_tready),
  .m_axis_write_data_TDATA(axis_bench_write_data_tdata),
@@ -473,8 +493,8 @@ dma_bench_ip dma_bench_inst(
  .s_axis_read_data_TDATA(axis_bench_read_data_tdata),
  .s_axis_read_data_TKEEP(axis_bench_read_data_tkeep),
  .s_axis_read_data_TLAST(axis_bench_read_data_tlast),
- .aresetn(aresetn),
- .aclk(axi_clk),
+ .aresetn(net_aresetn),
+ .aclk(net_clk),
  .regBaseAddr_V({16'h00, dmaBenchBaseAddr}),
  .memorySize_V({16'h00, dmaBenchMemorySize}),
  .numberOfAccesses_V(dmaBenchNumberOfAccesses),
@@ -487,6 +507,71 @@ dma_bench_ip dma_bench_inst(
  );
 
 
+axis_clock_converter_96 dma_bench_read_cmd_cc_inst (
+  .s_axis_aresetn(net_aresetn),
+  .s_axis_aclk(net_clk),
+  .s_axis_tvalid(axis_bench_read_cmd_tvalid),
+  .s_axis_tready(axis_bench_read_cmd_tready),
+  .s_axis_tdata(axis_bench_read_cmd_tdata),
+  
+  .m_axis_aresetn(pcie_aresetn),
+  .m_axis_aclk(pcie_clk),
+  .m_axis_tvalid(axis_pcie_bench_read_cmd_tvalid),
+  .m_axis_tready(axis_pcie_bench_read_cmd_tready),
+  .m_axis_tdata(axis_pcie_bench_read_cmd_tdata)
+);
+
+axis_clock_converter_96 dma_bench_write_cmd_cc_inst (
+  .s_axis_aresetn(net_aresetn),
+  .s_axis_aclk(net_clk),
+  .s_axis_tvalid(axis_bench_write_cmd_tvalid),
+  .s_axis_tready(axis_bench_write_cmd_tready),
+  .s_axis_tdata(axis_bench_write_cmd_tdata),
+  
+  .m_axis_aresetn(pcie_aresetn),
+  .m_axis_aclk(pcie_clk),
+  .m_axis_tvalid(axis_pcie_bench_write_cmd_tvalid),
+  .m_axis_tready(axis_pcie_bench_write_cmd_tready),
+  .m_axis_tdata(axis_pcie_bench_write_cmd_tdata)
+);
+
+//axis_clock_converter_512 dma_bench_read_data_cc_inst (
+axis_data_fifo_512_cc dma_bench_read_data_cc_inst (
+  .s_axis_aresetn(pcie_aresetn),
+  .s_axis_aclk(pcie_clk),
+  .s_axis_tvalid(axis_pcie_bench_read_data_tvalid),
+  .s_axis_tready(axis_pcie_bench_read_data_tready),
+  .s_axis_tdata(axis_pcie_bench_read_data_tdata),
+  .s_axis_tkeep(axis_pcie_bench_read_data_tkeep),
+  .s_axis_tlast(axis_pcie_bench_read_data_tlast),
+
+  .m_axis_aresetn(net_aresetn),
+  .m_axis_aclk(net_clk),
+  .m_axis_tvalid(axis_bench_read_data_tvalid),
+  .m_axis_tready(axis_bench_read_data_tready),
+  .m_axis_tdata(axis_bench_read_data_tdata),
+  .m_axis_tkeep(axis_bench_read_data_tkeep),
+  .m_axis_tlast(axis_bench_read_data_tlast)
+);
+
+//axis_clock_converter_512 dma_bench_write_data_cc_inst (
+axis_data_fifo_512_cc dma_bench_write_data_cc_inst (
+  .s_axis_aresetn(net_aresetn),
+  .s_axis_aclk(net_clk),
+  .s_axis_tvalid(axis_bench_write_data_tvalid),
+  .s_axis_tready(axis_bench_write_data_tready),
+  .s_axis_tdata(axis_bench_write_data_tdata),
+  .s_axis_tkeep(axis_bench_write_data_tkeep),
+  .s_axis_tlast(axis_bench_write_data_tlast),
+  
+  .m_axis_aresetn(pcie_aresetn),
+  .m_axis_aclk(pcie_clk),
+  .m_axis_tvalid(axis_pcie_bench_write_data_tvalid),
+  .m_axis_tready(axis_pcie_bench_write_data_tready),
+  .m_axis_tdata(axis_pcie_bench_write_data_tdata),
+  .m_axis_tkeep(axis_pcie_bench_write_data_tkeep),
+  .m_axis_tlast(axis_pcie_bench_write_data_tlast)
+);
 
 /*
  * TLB wires
@@ -496,39 +581,26 @@ wire axis_tlb_interface_valid;
 wire axis_tlb_interface_ready;
 wire[135:0] axis_tlb_interface_data;
 
-wire axis_pcie_tlb_interface_valid;
-wire axis_pcie_tlb_interface_ready;
-wire[135:0] axis_pcie_tlb_interface_data;
-
-(* mark_debug = "true" *)wire        axis_dma_read_cmd_to_clk_tvalid;
-(* mark_debug = "true" *)wire        axis_dma_read_cmd_to_clk_tready;
-wire[95:0]  axis_dma_read_cmd_to_clk_tdata;
-(* mark_debug = "true" *)wire        axis_dma_write_cmd_to_clk_tvalid;
-(* mark_debug = "true" *)wire        axis_dma_write_cmd_to_clk_tready;
-wire[95:0]  axis_dma_write_cmd_to_clk_tdata;
-
-
-wire        axis_pcie_dma_read_cmd_tvalid;
-wire         axis_pcie_dma_read_cmd_tready;
-wire[95:0]  axis_pcie_dma_read_cmd_tdata;
-wire        axis_pcie_dma_write_cmd_tvalid;
-wire         axis_pcie_dma_write_cmd_tready;
-wire[95:0]  axis_pcie_dma_write_cmd_tdata;
-
+wire        axis_dma_read_cmd_to_tlb_tvalid;
+wire        axis_dma_read_cmd_to_tlb_tready;
+wire[95:0]  axis_dma_read_cmd_to_tlb_tdata;
+wire        axis_dma_write_cmd_to_tlb_tvalid;
+wire        axis_dma_write_cmd_to_tlb_tready;
+wire[95:0]  axis_dma_write_cmd_to_tlb_tdata;
 
 
 //PCIe clock
-(* mark_debug = "true" *) wire        axis_dma_write_width_tvalid;
-(* mark_debug = "true" *) wire        axis_dma_write_width_tready;
-wire[511:0] axis_dma_write_width_tdata;
-wire[63:0]  axis_dma_write_width_tkeep;
-(* mark_debug = "true" *) wire        axis_dma_write_width_tlast;
+wire        axis_dma_write_data_to_width_tvalid;
+wire        axis_dma_write_data_to_width_tready;
+wire[511:0] axis_dma_write_data_to_width_tdata;
+wire[63:0]  axis_dma_write_data_to_width_tkeep;
+wire        axis_dma_write_data_to_width_tlast;
 
-(* mark_debug = "true" *) wire        axis_dma_write_data_tvalid;
-(* mark_debug = "true" *) wire        axis_dma_write_data_tready;
+wire        axis_dma_write_data_tvalid;
+wire        axis_dma_write_data_tready;
 wire[255:0] axis_dma_write_data_tdata;
 wire[31:0]  axis_dma_write_data_tkeep;
-(* mark_debug = "true" *) wire        axis_dma_write_data_tlast;
+wire        axis_dma_write_data_tlast;
 
 
 //PCIe clock
@@ -539,37 +611,31 @@ wire[31:0]  axis_dma_read_data_tkeep;
 wire        axis_dma_read_data_tlast;
 
 
-(* mark_debug = "true" *) wire axis_write_data_boundary_to_cc_tvalid;
-(* mark_debug = "true" *) wire axis_write_data_boundary_to_cc_tready;
-wire[511:0] axis_write_data_boundary_to_cc_tdata;
-wire[63:0] axis_write_data_boundary_to_cc_tkeep;
-(* mark_debug = "true" *) wire axis_write_data_boundary_to_cc_tlast;
-
 //read
-assign axis_dma_read_cmd_tvalid = axis_bench_read_cmd_TVALID;
-assign axis_bench_read_cmd_TREADY = axis_dma_read_cmd_tready;
-assign axis_dma_read_cmd_tdata = axis_bench_read_cmd_TDATA;
+assign axis_dma_read_cmd_to_tlb_tvalid = axis_pcie_bench_read_cmd_tvalid;
+assign axis_pcie_bench_read_cmd_tready = axis_dma_read_cmd_to_tlb_tready;
+assign axis_dma_read_cmd_to_tlb_tdata = axis_pcie_bench_read_cmd_tdata;
 
 mem_write_cmd_page_boundary_check_512_ip mem_write_cmd_page_boundary_check_inst (
   .regBaseVaddr_V(regBaseVaddrBoundCheck),          // input wire [63 : 0] regBaseVaddr_V
-  .m_axis_cmd_TVALID(axis_dma_write_cmd_tvalid),    // output wire m_axis_cmd_TVALID
-  .m_axis_cmd_TREADY(axis_dma_write_cmd_tready),    // input wire m_axis_cmd_TREADY
-  .m_axis_cmd_TDATA(axis_dma_write_cmd_tdata),      // output wire [95 : 0] m_axis_cmd_TDATA
-  .m_axis_data_TVALID(axis_write_data_boundary_to_cc_tvalid),  // output wire m_axis_data_TVALID
-  .m_axis_data_TREADY(axis_write_data_boundary_to_cc_tready),  // input wire m_axis_data_TREADY
-  .m_axis_data_TDATA(axis_write_data_boundary_to_cc_tdata),    // output wire [63 : 0] m_axis_data_TDATA
-  .m_axis_data_TKEEP(axis_write_data_boundary_to_cc_tkeep),    // output wire [7 : 0] m_axis_data_TKEEP
-  .m_axis_data_TLAST(axis_write_data_boundary_to_cc_tlast),    // output wire [0 : 0] m_axis_data_TLAST
-  .s_axis_cmd_TVALID(axis_bench_write_cmd_TVALID),    // input wire s_axis_cmd_TVALID
-  .s_axis_cmd_TREADY(axis_bench_write_cmd_TREADY),    // output wire s_axis_cmd_TREADY
-  .s_axis_cmd_TDATA(axis_bench_write_cmd_TDATA),      // input wire [95 : 0] s_axis_cmd_TDATA
-  .s_axis_data_TVALID(axis_bench_write_data_tvalid),  // input wire s_axis_data_TVALID
-  .s_axis_data_TREADY(axis_bench_write_data_tready),  // output wire s_axis_data_TREADY
-  .s_axis_data_TDATA(axis_bench_write_data_tdata),    // input wire [63 : 0] s_axis_data_TDATA
-  .s_axis_data_TKEEP(axis_bench_write_data_tkeep),    // input wire [7 : 0] s_axis_data_TKEEP
-  .s_axis_data_TLAST(axis_bench_write_data_tlast),    // input wire [0 : 0] s_axis_data_TLAST
-  .aclk(axi_clk),                              // input wire aclk
-  .aresetn(aresetn)                        // input wire aresetn
+  .m_axis_cmd_TVALID(axis_dma_write_cmd_to_tlb_tvalid),    // output wire m_axis_cmd_TVALID
+  .m_axis_cmd_TREADY(axis_dma_write_cmd_to_tlb_tready),    // input wire m_axis_cmd_TREADY
+  .m_axis_cmd_TDATA(axis_dma_write_cmd_to_tlb_tdata),      // output wire [95 : 0] m_axis_cmd_TDATA
+  .m_axis_data_TVALID(axis_dma_write_data_to_width_tvalid),  // output wire m_axis_data_TVALID
+  .m_axis_data_TREADY(axis_dma_write_data_to_width_tready),  // input wire m_axis_data_TREADY
+  .m_axis_data_TDATA(axis_dma_write_data_to_width_tdata),    // output wire [63 : 0] m_axis_data_TDATA
+  .m_axis_data_TKEEP(axis_dma_write_data_to_width_tkeep),    // output wire [7 : 0] m_axis_data_TKEEP
+  .m_axis_data_TLAST(axis_dma_write_data_to_width_tlast),    // output wire [0 : 0] m_axis_data_TLAST
+  .s_axis_cmd_TVALID(axis_pcie_bench_write_cmd_tvalid),    // input wire s_axis_cmd_TVALID
+  .s_axis_cmd_TREADY(axis_pcie_bench_write_cmd_tready),    // output wire s_axis_cmd_TREADY
+  .s_axis_cmd_TDATA(axis_pcie_bench_write_cmd_tdata),      // input wire [95 : 0] s_axis_cmd_TDATA
+  .s_axis_data_TVALID(axis_pcie_bench_write_data_tvalid),  // input wire s_axis_data_TVALID
+  .s_axis_data_TREADY(axis_pcie_bench_write_data_tready),  // output wire s_axis_data_TREADY
+  .s_axis_data_TDATA(axis_pcie_bench_write_data_tdata),    // input wire [63 : 0] s_axis_data_TDATA
+  .s_axis_data_TKEEP(axis_pcie_bench_write_data_tkeep),    // input wire [7 : 0] s_axis_data_TKEEP
+  .s_axis_data_TLAST(axis_pcie_bench_write_data_tlast),    // input wire [0 : 0] s_axis_data_TLAST
+  .aclk(pcie_clk),                              // input wire aclk
+  .aresetn(pcie_aresetn)                        // input wire aresetn
 );
 
 wire axis_dma_read_data_width_to_clk_tvalid;
@@ -578,10 +644,9 @@ wire[511:0] axis_dma_read_data_width_to_clk_tdata;
 wire[63:0] axis_dma_read_data_width_to_clk_tkeep;
 wire axis_dma_read_data_width_to_clk_tlast;
 
-//convert width before clock crossing
 axis_256_to_512_converter dma_read_data_width_converter (
-  .aclk(clk125),                    // input wire aclk
-  .aresetn(clk125_aresetn),              // input wire aresetn
+  .aclk(pcie_clk),                    // input wire aclk
+  .aresetn(pcie_aresetn),              // input wire aresetn
   .s_axis_tvalid(axis_dma_read_data_tvalid),  // input wire s_axis_tvalid
   .s_axis_tready(axis_dma_read_data_tready),  // output wire s_axis_tready
   .s_axis_tdata(axis_dma_read_data_tdata),    // input wire [255 : 0] s_axis_tdata
@@ -594,29 +659,11 @@ axis_256_to_512_converter dma_read_data_width_converter (
   .m_axis_tlast(axis_dma_read_data_width_to_clk_tlast)    // output wire m_axis_tlast
 );
 
-//Clock crossing pcie to network clock
-axis_data_fifo_512_cc axis_dma_read_data_fifo (
-  .s_axis_aresetn(clk125_aresetn),          // input wire m_axis_aresetn
-  .s_axis_aclk(clk125),                // input wire m_axis_aclk
-  .s_axis_tvalid(axis_dma_read_data_width_to_clk_tvalid),            // output wire m_axis_tvalid
-  .s_axis_tready(axis_dma_read_data_width_to_clk_tready),            // input wire m_axis_tready
-  .s_axis_tdata(axis_dma_read_data_width_to_clk_tdata),              // output wire [255 : 0] m_axis_tdata
-  .s_axis_tkeep(axis_dma_read_data_width_to_clk_tkeep),              // output wire [31 : 0] m_axis_tkeep
-  .s_axis_tlast(axis_dma_read_data_width_to_clk_tlast),              // output wire m_axis_tlast
-  
-  .m_axis_aresetn(aresetn),          // input wire s_axis_aresetn
-  .m_axis_aclk(axi_clk),                // input wire s_axis_aclk 
-  .m_axis_tvalid(axis_bench_read_data_tvalid),            // input wire s_axis_tvalid
-  .m_axis_tready(axis_bench_read_data_tready),            // output wire s_axis_tready
-  .m_axis_tdata(axis_bench_read_data_tdata),              // input wire [255 : 0] s_axis_tdata
-  .m_axis_tkeep(axis_bench_read_data_tkeep),              // input wire [31 : 0] s_axis_tkeep
-  .m_axis_tlast(axis_bench_read_data_tlast),              // input wire s_axis_tlast
- 
-  .axis_data_count(),        // output wire [31 : 0] axis_data_count
-  .axis_wr_data_count(),  // output wire [31 : 0] axis_wr_data_count
-  .axis_rd_data_count()  // output wire [31 : 0] axis_rd_data_count
-);
-
+assign axis_pcie_bench_read_data_tvalid = axis_dma_read_data_width_to_clk_tvalid;
+assign axis_dma_read_data_width_to_clk_tready = axis_pcie_bench_read_data_tready;
+assign axis_pcie_bench_read_data_tdata = axis_dma_read_data_width_to_clk_tdata;
+assign axis_pcie_bench_read_data_tkeep = axis_dma_read_data_width_to_clk_tkeep;
+assign axis_pcie_bench_read_data_tlast = axis_dma_read_data_width_to_clk_tlast;
 
 
 wire GND_1;
@@ -651,7 +698,7 @@ mem_inf  #(
     .C1_SIM_BYPASS_INIT_CAL("OFF")
 )
 mem_inf_inst(
-.clk156_25(axi_clk),
+.clk156_25(net_clk),
 //.reset233_n(reset233_n), //active low reset signal for 233MHz clock domain
 //.reset156_25_n(ddr3_calib_complete),
 .reset156_25_n(ddr3_calib_complete),
@@ -780,58 +827,29 @@ mem_inf_inst(
 
 
 //get Base Addr of TLB for page boundary check
-reg[63:0] regBaseVaddr;
-reg[63:0] regBaseVaddrMerger;
-reg[63:0] regBaseVaddrBoundCheck;
-reg[63:0] regBaseVaddrRxPart;
-reg[63:0] regBaseVaddrTxPart;
-always @(posedge axi_clk)
+reg[47:0] regBaseVaddr;
+reg[47:0] regBaseVaddrBoundCheck;
+always @(posedge pcie_clk)
 begin 
-    if (~aresetn) begin
-        //regBaseVaddr <= 0;
+    if (~pcie_aresetn) begin
     end
     else begin
         if (axis_tlb_interface_valid && axis_tlb_interface_ready && axis_tlb_interface_data[128]) begin
             regBaseVaddr <= axis_tlb_interface_data[63:0];
-            regBaseVaddrMerger <= regBaseVaddr;
             regBaseVaddrBoundCheck <= regBaseVaddr;
-            regBaseVaddrRxPart <= regBaseVaddr;
-            regBaseVaddrTxPart <= regBaseVaddr;
         end
     end
 end
 
 
-//Clock crossing network clock to pcie clock
-axis_data_fifo_512_cc axis_dma_write_data_fifo (
-  .s_axis_aresetn(aresetn),          // input wire s_axis_aresetn
-  .s_axis_aclk(axi_clk),                // input wire s_axis_aclk
-  .s_axis_tvalid(axis_write_data_boundary_to_cc_tvalid),            // input wire s_axis_tvalid
-  .s_axis_tready(axis_write_data_boundary_to_cc_tready),            // output wire s_axis_tready
-  .s_axis_tdata(axis_write_data_boundary_to_cc_tdata),              // input wire [255 : 0] s_axis_tdata
-  .s_axis_tkeep(axis_write_data_boundary_to_cc_tkeep),              // input wire [31 : 0] s_axis_tkeep
-  .s_axis_tlast(axis_write_data_boundary_to_cc_tlast),              // input wire s_axis_tlast
-  
-  .m_axis_aresetn(clk125_aresetn),          // input wire m_axis_aresetn
-  .m_axis_aclk(clk125),                // input wire m_axis_aclk
-  .m_axis_tvalid(axis_dma_write_width_tvalid),            // output wire m_axis_tvalid
-  .m_axis_tready(axis_dma_write_width_tready),            // input wire m_axis_tready
-  .m_axis_tdata(axis_dma_write_width_tdata),              // output wire [255 : 0] m_axis_tdata
-  .m_axis_tkeep(axis_dma_write_width_tkeep),              // output wire [31 : 0] m_axis_tkeep
-  .m_axis_tlast(axis_dma_write_width_tlast),              // output wire m_axis_tlast
-  .axis_data_count(),        // output wire [31 : 0] axis_data_count
-  .axis_wr_data_count(),  // output wire [31 : 0] axis_wr_data_count
-  .axis_rd_data_count()  // output wire [31 : 0] axis_rd_data_count
-);
-
 axis_512_to_256_converter pcie_axis_write_data_512_256 (
-  .aclk(clk125),                    // input wire aclk
-  .aresetn(clk125_aresetn),              // input wire aresetn
-  .s_axis_tvalid(axis_dma_write_width_tvalid),  // input wire s_axis_tvalid
-  .s_axis_tready(axis_dma_write_width_tready),  // output wire s_axis_tready
-  .s_axis_tdata(axis_dma_write_width_tdata),    // input wire [511 : 0] s_axis_tdata
-  .s_axis_tkeep(axis_dma_write_width_tkeep),    // input wire [63 : 0] s_axis_tkeep
-  .s_axis_tlast(axis_dma_write_width_tlast),    // input wire s_axis_tlast
+  .aclk(pcie_clk),                    // input wire aclk
+  .aresetn(pcie_aresetn),              // input wire aresetn
+  .s_axis_tvalid(axis_dma_write_data_to_width_tvalid),  // input wire s_axis_tvalid
+  .s_axis_tready(axis_dma_write_data_to_width_tready),  // output wire s_axis_tready
+  .s_axis_tdata(axis_dma_write_data_to_width_tdata),    // input wire [511 : 0] s_axis_tdata
+  .s_axis_tkeep(axis_dma_write_data_to_width_tkeep),    // input wire [63 : 0] s_axis_tkeep
+  .s_axis_tlast(axis_dma_write_data_to_width_tlast),    // input wire s_axis_tlast
   .m_axis_tvalid(axis_dma_write_data_tvalid),  // output wire m_axis_tvalid
   .m_axis_tready(axis_dma_write_data_tready),  // input wire m_axis_tready
   .m_axis_tdata(axis_dma_write_data_tdata),    // output wire [255 : 0] m_axis_tdata
@@ -843,17 +861,17 @@ axis_512_to_256_converter pcie_axis_write_data_512_256 (
 /*
  * TLB
  */
-(* mark_debug = "true" *)wire tlb_miss_count_valid;
+wire tlb_miss_count_valid;
 wire[31:0] tlb_miss_count;
-(* mark_debug = "true" *)wire tlb_page_crossing_count_valid;
+wire tlb_page_crossing_count_valid;
 wire[31:0] tlb_page_crossing_count;
 
 reg[31:0] tlb_miss_counter;
 reg[31:0] tlb_boundary_crossing_counter;
 
-always @(posedge axi_clk)
+always @(posedge pcie_clk)
 begin 
-    if (~aresetn) begin
+    if (~pcie_aresetn) begin
         tlb_miss_counter <= 0;
         tlb_boundary_crossing_counter <= 0;
     end
@@ -869,32 +887,16 @@ end
 
 
  
-axis_clock_converter_144 axis_tlb_if_clock_converter_inst (
-   .s_axis_aresetn(clk125_aresetn),  // input wire s_axis_aresetn
-   .s_axis_aclk(clk125),        // input wire s_axis_aclk
-   
-   .s_axis_tvalid(axis_pcie_tlb_interface_valid),    // input wire s_axis_tvalid
-   .s_axis_tready(axis_pcie_tlb_interface_ready),    // output wire s_axis_tready
-   .s_axis_tdata(axis_pcie_tlb_interface_data),      // input wire [143 : 0] s_axis_tdata
-   
-   .m_axis_aclk(axi_clk),        // input wire m_axis_aclk
-   .m_axis_aresetn(aresetn),  // input wire m_axis_aresetn
-     
-   .m_axis_tvalid(axis_tlb_interface_valid),    // output wire m_axis_tvalid
-   .m_axis_tready(axis_tlb_interface_ready),    // input wire m_axis_tready
-   .m_axis_tdata(axis_tlb_interface_data)      // output wire [143 : 0] m_axis_tdata
- );
- 
 axis_clock_converter_200 axis_dma_bench_cmd_clock_converter_inst (
-    .s_axis_aresetn(clk125_aresetn),  // input wire s_axis_aresetn
-    .s_axis_aclk(clk125),        // input wire s_axis_aclk
+    .s_axis_aresetn(pcie_aresetn),  // input wire s_axis_aresetn
+    .s_axis_aclk(pcie_clk),        // input wire s_axis_aclk
     
     .s_axis_tvalid(axis_pcie_bench_cmd_valid),    // input wire s_axis_tvalid
     .s_axis_tready(axis_pcie_bench_cmd_ready),    // output wire s_axis_tready
     .s_axis_tdata(axis_pcie_bench_cmd_data),      // input wire [143 : 0] s_axis_tdata
     
-    .m_axis_aclk(axi_clk),        // input wire m_axis_aclk
-    .m_axis_aresetn(aresetn),  // input wire m_axis_aresetn
+    .m_axis_aclk(net_clk),        // input wire m_axis_aclk
+    .m_axis_aresetn(net_aresetn),  // input wire m_axis_aresetn
       
     .m_axis_tvalid(axis_bench_cmd_valid),    // output wire m_axis_tvalid
     .m_axis_tready(axis_bench_cmd_ready),    // input wire m_axis_tready
@@ -902,15 +904,15 @@ axis_clock_converter_200 axis_dma_bench_cmd_clock_converter_inst (
   );
  
 axis_clock_converter_64 axis_dma_bench_cycles_clock_converter_inst (
-    .s_axis_aresetn(aresetn),  // input wire s_axis_aresetn
-    .s_axis_aclk(axi_clk),        // input wire s_axis_aclk
+    .s_axis_aresetn(net_aresetn),  // input wire s_axis_aresetn
+    .s_axis_aclk(net_clk),        // input wire s_axis_aclk
     
     .s_axis_tvalid(1'b1),    // input wire s_axis_tvalid
     .s_axis_tready(),    // output wire s_axis_tready
     .s_axis_tdata(dma_bench_execution_cycles),      // input wire [143 : 0] s_axis_tdata
     
-    .m_axis_aclk(clk125),        // input wire m_axis_aclk
-    .m_axis_aresetn(clk125_aresetn),  // input wire m_axis_aresetn
+    .m_axis_aclk(pcie_clk),        // input wire m_axis_aclk
+    .m_axis_aresetn(pcie_aresetn),  // input wire m_axis_aresetn
       
     .m_axis_tvalid(),    // output wire m_axis_tvalid
     .m_axis_tready(1'b1),    // input wire m_axis_tready
@@ -924,23 +926,23 @@ axis_clock_converter_64 axis_dma_bench_cycles_clock_converter_inst (
    .m_axis_ddr_write_cmd_TVALID(axis_ddr_write_cmd_tvalid),  // output wire m_axis_ddr_write_cmd_tvalid
    .m_axis_ddr_write_cmd_TREADY(axis_ddr_write_cmd_tready),  // input wire m_axis_ddr_write_cmd_tready
    .m_axis_ddr_write_cmd_TDATA(axis_ddr_write_cmd_tdata),    // output wire [71 : 0] m_axis_ddr_write_cmd_tdata*/
-   .m_axis_dma_read_cmd_TVALID(axis_dma_read_cmd_to_clk_tvalid),    // output wire m_axis_dma_read_cmd_tvalid
-   .m_axis_dma_read_cmd_TREADY(axis_dma_read_cmd_to_clk_tready),    // input wire m_axis_dma_read_cmd_tready
-   .m_axis_dma_read_cmd_TDATA(axis_dma_read_cmd_to_clk_tdata),      // output wire [95 : 0] m_axis_dma_read_cmd_tdata
-   .m_axis_dma_write_cmd_TVALID(axis_dma_write_cmd_to_clk_tvalid),  // output wire m_axis_dma_write_cmd_tvalid
-   .m_axis_dma_write_cmd_TREADY(axis_dma_write_cmd_to_clk_tready),  // input wire m_axis_dma_write_cmd_tready
-   .m_axis_dma_write_cmd_TDATA(axis_dma_write_cmd_to_clk_tdata),    // output wire [95 : 0] m_axis_dma_write_cmd_tdata
-   .s_axis_mem_read_cmd_TVALID(axis_dma_read_cmd_tvalid),    // input wire s_axis_mem_read_cmd_tvalid
-   .s_axis_mem_read_cmd_TREADY(axis_dma_read_cmd_tready),    // output wire s_axis_mem_read_cmd_tready
-   .s_axis_mem_read_cmd_TDATA(axis_dma_read_cmd_tdata),      // input wire [111 : 0] s_axis_mem_read_cmd_tdata
-   .s_axis_mem_write_cmd_TVALID(axis_dma_write_cmd_tvalid),  // input wire s_axis_mem_write_cmd_tvalid
-   .s_axis_mem_write_cmd_TREADY(axis_dma_write_cmd_tready),  // output wire s_axis_mem_write_cmd_tready
-   .s_axis_mem_write_cmd_TDATA(axis_dma_write_cmd_tdata),    // input wire [111 : 0] s_axis_mem_write_cmd_tdata
+   .m_axis_dma_read_cmd_TVALID(axis_dma_read_cmd_tvalid),    // output wire m_axis_dma_read_cmd_tvalid
+   .m_axis_dma_read_cmd_TREADY(axis_dma_read_cmd_tready),    // input wire m_axis_dma_read_cmd_tready
+   .m_axis_dma_read_cmd_TDATA(axis_dma_read_cmd_tdata),      // output wire [95 : 0] m_axis_dma_read_cmd_tdata
+   .m_axis_dma_write_cmd_TVALID(axis_dma_write_cmd_tvalid),  // output wire m_axis_dma_write_cmd_tvalid
+   .m_axis_dma_write_cmd_TREADY(axis_dma_write_cmd_tready),  // input wire m_axis_dma_write_cmd_tready
+   .m_axis_dma_write_cmd_TDATA(axis_dma_write_cmd_tdata),    // output wire [95 : 0] m_axis_dma_write_cmd_tdata
+   .s_axis_mem_read_cmd_TVALID(axis_dma_read_cmd_to_tlb_tvalid),    // input wire s_axis_mem_read_cmd_tvalid
+   .s_axis_mem_read_cmd_TREADY(axis_dma_read_cmd_to_tlb_tready),    // output wire s_axis_mem_read_cmd_tready
+   .s_axis_mem_read_cmd_TDATA(axis_dma_read_cmd_to_tlb_tdata),      // input wire [111 : 0] s_axis_mem_read_cmd_tdata
+   .s_axis_mem_write_cmd_TVALID(axis_dma_write_cmd_to_tlb_tvalid),  // input wire s_axis_mem_write_cmd_tvalid
+   .s_axis_mem_write_cmd_TREADY(axis_dma_write_cmd_to_tlb_tready),  // output wire s_axis_mem_write_cmd_tready
+   .s_axis_mem_write_cmd_TDATA(axis_dma_write_cmd_to_tlb_tdata),    // input wire [111 : 0] s_axis_mem_write_cmd_tdata
    .s_axis_tlb_interface_TVALID(axis_tlb_interface_valid),  // input wire s_axis_tlb_interface_tvalid
    .s_axis_tlb_interface_TREADY(axis_tlb_interface_ready),  // output wire s_axis_tlb_interface_tready
    .s_axis_tlb_interface_TDATA(axis_tlb_interface_data),    // input wire [135 : 0] s_axis_tlb_interface_tdata
-   .aclk(axi_clk),                                                // input wire aclk
-   .aresetn(aresetn),                                          // input wire aresetn
+   .aclk(pcie_clk),                                                // input wire aclk
+   .aresetn(pcie_aresetn),                                          // input wire aresetn
    .regTlbMissCount_V(tlb_miss_count),                      // output wire [31 : 0] regTlbMissCount_V
    .regTlbMissCount_V_ap_vld(tlb_miss_count_valid),
    .regPageCrossingCount_V(tlb_page_crossing_count),                // output wire [31 : 0] regPageCrossingCount_V
@@ -948,52 +950,8 @@ axis_clock_converter_64 axis_dma_bench_cycles_clock_converter_inst (
  );
 
 
-(* mark_debug = "true" *) wire dma_write_fifo_to_clk_tvalid;
-(* mark_debug = "true" *) wire dma_write_fifo_to_clk_tready;
-wire[95:0] dma_write_fifo_to_clk_tdata;
 
-axis_data_fifo_96 axis_dma_write_cmd_fifo (
-  .s_axis_aclk(axi_clk),                    // input wire aclk
-  .s_axis_aresetn(aresetn),              // input wire aresetn
-  .s_axis_tvalid(axis_dma_write_cmd_to_clk_tvalid),  // input wire s_axis_tvalid
-  .s_axis_tready(axis_dma_write_cmd_to_clk_tready),  // output wire s_axis_tready
-  .s_axis_tdata(axis_dma_write_cmd_to_clk_tdata),    // input wire [95 : 0] s_axis_tdata
-  .m_axis_tvalid(dma_write_fifo_to_clk_tvalid),  // output wire m_axis_tvalid
-  .m_axis_tready(dma_write_fifo_to_clk_tready),  // input wire m_axis_tready
-  .m_axis_tdata(dma_write_fifo_to_clk_tdata),    // output wire [95 : 0] m_axis_tdata
-  .axis_data_count(),
-  .axis_wr_data_count(),
-  .axis_rd_data_count()
-);
 
-//TODO make clock crossing fifo
-axis_clock_converter_96 axis_dma_write_cmd_clk_crossing (
-  .s_axis_aresetn(aresetn),  // input wire s_axis_aresetn
-  .s_axis_aclk(axi_clk),        // input wire s_axis_aclk
-  .s_axis_tvalid(dma_write_fifo_to_clk_tvalid),    // input wire s_axis_tvalid
-  .s_axis_tready(dma_write_fifo_to_clk_tready),    // output wire s_axis_tready
-  .s_axis_tdata(dma_write_fifo_to_clk_tdata),      // input wire [95 : 0] s_axis_tdata
-  
-  .m_axis_aresetn(clk125_aresetn),  // input wire m_axis_aresetn
-  .m_axis_aclk(clk125),        // input wire m_axis_aclk
-  .m_axis_tvalid(axis_pcie_dma_write_cmd_tvalid),    // output wire m_axis_tvalid
-  .m_axis_tready(axis_pcie_dma_write_cmd_tready),    // input wire m_axis_tready
-  .m_axis_tdata(axis_pcie_dma_write_cmd_tdata)      // output wire [95 : 0] m_axis_tdata
-);
-
-axis_clock_converter_96 axis_dma_read_cmd_clk_crossing (
-  .s_axis_aresetn(aresetn),  // input wire s_axis_aresetn
-  .s_axis_aclk(axi_clk),        // input wire s_axis_aclk
-  .s_axis_tvalid(axis_dma_read_cmd_to_clk_tvalid),    // input wire s_axis_tvalid
-  .s_axis_tready(axis_dma_read_cmd_to_clk_tready),    // output wire s_axis_tready
-  .s_axis_tdata(axis_dma_read_cmd_to_clk_tdata),      // input wire [95 : 0] s_axis_tdata
-  
-  .m_axis_aresetn(clk125_aresetn),  // input wire m_axis_aresetn
-  .m_axis_aclk(clk125),        // input wire m_axis_aclk
-  .m_axis_tvalid(axis_pcie_dma_read_cmd_tvalid),    // output wire m_axis_tvalid
-  .m_axis_tready(axis_pcie_dma_read_cmd_tready),    // input wire m_axis_tready
-  .m_axis_tdata(axis_pcie_dma_read_cmd_tdata)      // output wire [95 : 0] m_axis_tdata
-);
 
 /*
  * DMA
@@ -1027,11 +985,11 @@ wire pcie_axil_rvalid;
 wire pcie_axil_rready;
 
 reg led_light;
-assign led[5] = clk125_aresetn; //led_light;
+assign led[5] = pcie_aresetn; //led_light;
 
-always @(posedge clk125)
+always @(posedge pcie_clk)
 begin 
-    if (~clk125_aresetn) begin
+    if (~pcie_aresetn) begin
         led_light <= 1'b0;
     end
     else begin
@@ -1041,21 +999,21 @@ begin
     end
 end
 
-(* mark_debug = "true" *) wire      axis_dma_write_dsc_byp_ready;
-(* mark_debug = "true" *) reg       axis_dma_write_dsc_byp_load;
+wire      axis_dma_write_dsc_byp_ready;
+reg       axis_dma_write_dsc_byp_load;
 reg[63:0] axis_dma_write_dsc_byp_addr;
 reg[31:0] axis_dma_write_dsc_byp_len;
 
-(* mark_debug = "true" *) wire      axis_dma_read_dsc_byp_ready;
-(* mark_debug = "true" *) reg       axis_dma_read_dsc_byp_load;
+wire      axis_dma_read_dsc_byp_ready;
+reg       axis_dma_read_dsc_byp_load;
 reg[63:0] axis_dma_read_dsc_byp_addr;
 reg[31:0] axis_dma_read_dsc_byp_len;
 
 // Write descriptor bypass
-assign axis_pcie_dma_write_cmd_tready = axis_dma_write_dsc_byp_ready;
-always @(posedge clk125)
+assign axis_dma_write_cmd_tready = axis_dma_write_dsc_byp_ready;
+always @(posedge pcie_clk)
 begin 
-    if (~clk125_aresetn) begin
+    if (~pcie_aresetn) begin
         //axis_dma_write_cmd_tready <= 1'b0;
         axis_dma_write_dsc_byp_load <= 1'b0;
     end
@@ -1063,20 +1021,20 @@ begin
         //axis_dma_write_cmd_tready <= axis_dma_write_dsc_byp_ready;
         axis_dma_write_dsc_byp_load <= 1'b0;
         
-        if (axis_pcie_dma_write_cmd_tvalid && axis_pcie_dma_write_cmd_tready) begin
+        if (axis_dma_write_cmd_tvalid && axis_dma_write_cmd_tready) begin
             //axis_dma_write_cmd_tready <= 1'b0;
             axis_dma_write_dsc_byp_load <= 1'b1;
-            axis_dma_write_dsc_byp_addr <= axis_pcie_dma_write_cmd_tdata[63:0];
-            axis_dma_write_dsc_byp_len  <= axis_pcie_dma_write_cmd_tdata[95:64];
+            axis_dma_write_dsc_byp_addr <= axis_dma_write_cmd_tdata[63:0];
+            axis_dma_write_dsc_byp_len  <= axis_dma_write_cmd_tdata[95:64];
         end
     end
 end
 
 // Read descriptor bypass
-assign axis_pcie_dma_read_cmd_tready = axis_dma_read_dsc_byp_ready;
-always @(posedge clk125)
+assign axis_dma_read_cmd_tready = axis_dma_read_dsc_byp_ready;
+always @(posedge pcie_clk)
 begin 
-    if (~clk125_aresetn) begin
+    if (~pcie_aresetn) begin
         //axis_dma_read_cmd_tready <= 1'b0;
         axis_dma_read_dsc_byp_load <= 1'b0;
     end
@@ -1084,11 +1042,11 @@ begin
         //axis_dma_read_cmd_tready <= axis_dma_read_dsc_byp_ready;
         axis_dma_read_dsc_byp_load <= 1'b0;
         
-        if (axis_pcie_dma_read_cmd_tvalid && axis_pcie_dma_read_cmd_tready) begin
+        if (axis_dma_read_cmd_tvalid && axis_dma_read_cmd_tready) begin
             //axis_dma_read_cmd_tready <= 1'b0;
             axis_dma_read_dsc_byp_load <= 1'b1;
-            axis_dma_read_dsc_byp_addr <= axis_pcie_dma_read_cmd_tdata[63:0];
-            axis_dma_read_dsc_byp_len  <= axis_pcie_dma_read_cmd_tdata[95:64];
+            axis_dma_read_dsc_byp_addr <= axis_dma_read_cmd_tdata[63:0];
+            axis_dma_read_dsc_byp_len  <= axis_dma_read_cmd_tdata[95:64];
         end
     end
 end
@@ -1105,8 +1063,8 @@ xdma_ip dma_inst (
   .pci_exp_txn(pcie_tx_n),                                      // output wire [7 : 0] pci_exp_txn
   .pci_exp_rxp(pcie_rx_p),                                      // input wire [7 : 0] pci_exp_rxp
   .pci_exp_rxn(pcie_rx_n),                                      // input wire [7 : 0] pci_exp_rxn
-  .axi_aclk(clk125),                                            // output wire axi_aclk
-  .axi_aresetn(clk125_aresetn),                                      // output wire axi_aresetn
+  .axi_aclk(pcie_clk),                                            // output wire axi_aclk
+  .axi_aresetn(pcie_aresetn),                                      // output wire axi_aresetn
   .usr_irq_req(1'b0),                                      // input wire [0 : 0] usr_irq_req
   .usr_irq_ack(),                                      // output wire [0 : 0] usr_irq_ack
   .msi_enable(),                                        // output wire msi_enable
@@ -1170,10 +1128,10 @@ xdma_ip dma_inst (
 );
 
 example_controller controller_inst(
-    .aclk(clk125),
-    .aresetn(clk125_aresetn),
-    .net_aclk(axi_clk),
-    .net_aresetn(aresetn),
+    .aclk(pcie_clk),
+    .aresetn(pcie_aresetn),
+    .net_aclk(net_clk),
+    .net_aresetn(net_aresetn),
     
      // AXI Lite Master Interface connections
     .s_axil_awaddr  (pcie_axil_awaddr[31:0]),
@@ -1195,38 +1153,15 @@ example_controller controller_inst(
     .s_axil_rready  (pcie_axil_rready),
     
     // Control streams
-    /*.m_axis_qp_interface_valid         (axis_pcie_qp_interface_valid),
-    .m_axis_qp_interface_ready         (axis_pcie_qp_interface_ready),
-    .m_axis_qp_interface_data          (axis_pcie_qp_interface_data),
-    .m_axis_qp_conn_interface_valid    (axis_pcie_qp_conn_interface_valid),
-    .m_axis_qp_conn_interface_ready    (axis_pcie_qp_conn_interface_ready),
-    .m_axis_qp_conn_interface_data     (axis_pcie_qp_conn_interface_data),*/
-    .m_axis_tlb_interface_valid        (axis_pcie_tlb_interface_valid),
-    .m_axis_tlb_interface_ready        (axis_pcie_tlb_interface_ready),
-    .m_axis_tlb_interface_data         (axis_pcie_tlb_interface_data),
+    .m_axis_tlb_interface_valid        (axis_tlb_interface_valid),
+    .m_axis_tlb_interface_ready        (axis_tlb_interface_ready),
+    .m_axis_tlb_interface_data         (axis_tlb_interface_data),
     .m_axis_dma_bench_cmd_valid        (axis_pcie_bench_cmd_valid),
     .m_axis_dma_bench_cmd_ready        (axis_pcie_bench_cmd_ready),
     .m_axis_dma_bench_cmd_data         (axis_pcie_bench_cmd_data),
-    /*.m_axis_tx_meta_valid              (axis_pcie_tx_metadata_TVALID),
-    .m_axis_tx_meta_ready              (axis_pcie_tx_metadata_TREADY),
-    .m_axis_tx_meta_data               (axis_pcie_tx_metadata_TDATA),*/
-    
-    //Partitioner config
-    /*.m_axis_rxpart_cmd_valid(axis_pcie_rxpart_cmd_valid),
-    .m_axis_rxpart_cmd_ready(axis_pcie_rxpart_cmd_ready),
-    .m_axis_rxpart_cmd_data (axis_pcie_rxpart_cmd_data),
-    .m_axis_txpart_cmd_valid(axis_pcie_txpart_cmd_valid),
-    .m_axis_txpart_cmd_ready(axis_pcie_txpart_cmd_ready),
-    .m_axis_txpart_cmd_data (axis_pcie_txpart_cmd_data),
-    .m_axis_rxpart_mapping_valid(axis_pcie_rxpart_mapping_valid),
-    .m_axis_rxpart_mapping_ready(axis_pcie_rxpart_mapping_ready),
-    .m_axis_rxpart_mapping_data (axis_pcie_rxpart_mapping_data),
-    .m_axis_txpart_mapping_valid(axis_pcie_txpart_mapping_valid),
-    .m_axis_txpart_mapping_ready(axis_pcie_txpart_mapping_ready),
-    .m_axis_txpart_mapping_data (axis_pcie_txpart_mapping_data),
     
     //Host ARP lookup
-    .m_axis_host_arp_lookup_request_TVALID(axis_pcie_host_arp_lookup_request_TVALID),
+    /*.m_axis_host_arp_lookup_request_TVALID(axis_pcie_host_arp_lookup_request_TVALID),
     .m_axis_host_arp_lookup_request_TREADY(axis_pcie_host_arp_lookup_request_TREADY),
     .m_axis_host_arp_lookup_request_TDATA(axis_pcie_host_arp_lookup_request_TDATA),
     .s_axis_host_arp_lookup_reply_TVALID(axis_pcie_host_arp_lookup_reply_TVALID),
@@ -1239,21 +1174,8 @@ example_controller controller_inst(
     //.roce_crc_pkg_drop_count           (regCrcDropPkgCount),
     //.roce_psn_pkg_drop_count           (regInvalidPsnDropCount),
     //rxpart
-    /*.rxpart_cmd_counter                (rxpart_cmd_counter),
-    .rxpart_mapping_counter            (rxpart_mapping_counter),
-    .rxpart_input_tuple_counter        (rxpart_input_tuple_counter),
-    .rxpart_output_tuple_counter       (rxpart_output_tuple_counter),
-    .rxpart_output_pkg_counter         (rxpart_output_pkg_counter),
-    //txpart
-    .txpart_cmd_counter                (txpart_cmd_counter),
-    .txpart_mapping_counter            (txpart_mapping_counter),
-    .txpart_input_tuple_counter        (txpart_input_tuple_counter),
-    .txpart_output_tuple_counter       (txpart_output_tuple_counter),
-    .txpart_output_pkg_counter         (txpart_output_pkg_counter),
-    .txpart_local_output_tuple_counter (txpart_local_output_tuple_counter),
-    .txpart_local_output_pkg_counter   (txpart_local_output_pkg_counter),
     //mem cmd
-    .roce_write_cmd_counter            (roce_write_cmd_counter),
+    /*.roce_write_cmd_counter            (roce_write_cmd_counter),
     .roce_read_cmd_counter             (roce_read_cmd_counter),
     .rxpart_write_cmd_counter          (rxpart_write_cmd_counter),
     .txpart_write_cmd_counter          (txpart_write_cmd_counter),
@@ -1263,6 +1185,7 @@ example_controller controller_inst(
     .roce_tx_dma_tuple_counter          (roce_tx_dma_tuple_counter),
     .roce_tx_local_tuple_counter        (roce_tx_local_tuple_counter),
     .axis_stream_down                   (axis_stream_down),*/
+
     //tlb
     .tlb_miss_counter                   (tlb_miss_counter),
     .tlb_boundary_crossing_counter      (tlb_boundary_crossing_counter),
@@ -1300,10 +1223,10 @@ reg[31:0] dma_write_pkg_counter;
 wire reset_dma_write_length_counter;
 reg[47:0] dma_write_length_counter;
 
-reg[31:0] dma_read_cmd_counter;
+ reg[31:0] dma_read_cmd_counter;
 reg[31:0] dma_read_load_counter;
-reg[31:0] dma_read_word_counter;
-reg[31:0] dma_read_pkg_counter;
+ reg[31:0] dma_read_word_counter;
+ reg[31:0] dma_read_pkg_counter;
 wire reset_dma_read_length_counter;
 reg[47:0] dma_read_length_counter;
 reg dma_reads_flushed;
@@ -1313,9 +1236,9 @@ reg[7:0] write_bypass_ready_counter;
 reg[31:0] dma_write_back_pressure_counter;
 
 
-always @(posedge clk125)
+always @(posedge pcie_clk)
 begin 
-    if (~clk125_aresetn) begin
+    if (~pcie_aresetn) begin
         dma_write_cmd_counter <= 0;
         dma_write_load_counter <= 0;
         dma_write_word_counter <= 0;
@@ -1333,9 +1256,9 @@ begin
     else begin
         dma_reads_flushed <= (dma_read_cmd_counter == dma_read_pkg_counter);
         //write
-        if (axis_pcie_dma_write_cmd_tvalid && axis_pcie_dma_write_cmd_tready) begin
+        if (axis_dma_write_cmd_tvalid && axis_dma_write_cmd_tready) begin
             dma_write_cmd_counter <= dma_write_cmd_counter + 1;
-            dma_write_length_counter <= dma_write_length_counter + axis_pcie_dma_write_cmd_tdata[95:64];
+            dma_write_length_counter <= dma_write_length_counter + axis_dma_write_cmd_tdata[95:64];
         end
         if (reset_dma_write_length_counter) begin
             dma_write_length_counter <= 0;
@@ -1350,10 +1273,10 @@ begin
             end
         end
         //read
-        if (axis_pcie_dma_read_cmd_tvalid && axis_pcie_dma_read_cmd_tready) begin
+        if (axis_dma_read_cmd_tvalid && axis_dma_read_cmd_tready) begin
             dma_read_cmd_counter <= dma_read_cmd_counter + 1;
-            dma_read_length_counter <= dma_read_length_counter + axis_pcie_dma_read_cmd_tdata[95:64];
-            if (axis_pcie_dma_read_cmd_tdata[95:64] == 0) begin
+            dma_read_length_counter <= dma_read_length_counter + axis_dma_read_cmd_tdata[95:64];
+            if (axis_dma_read_cmd_tdata[95:64] == 0) begin
                 invalid_read <=  1;
             end
         end
@@ -1369,7 +1292,7 @@ begin
                 dma_read_pkg_counter <= dma_read_pkg_counter + 1;
             end
         end
-        if (axis_pcie_dma_write_cmd_tvalid && ~axis_pcie_dma_write_cmd_tready) begin
+        if (axis_dma_write_cmd_tvalid && ~axis_dma_write_cmd_tready) begin
             dma_write_back_pressure_counter <= dma_write_back_pressure_counter + 1;
         end
         
@@ -1393,14 +1316,14 @@ reg pong_on;
 reg read_ping_on;
 reg writecmd_on;
 reg dmaread_on;
-(* mark_debug = "true" *)reg[11:0] perf_write_cmd_counter;
-(* mark_debug = "true" *)reg[15:0] perf_ping_counter;
-(* mark_debug = "true" *)reg[11:0] perf_pong_counter;
-(* mark_debug = "true" *)reg[11:0] perf_dmaread_counter;
-(* mark_debug = "true" *)reg[15:0] perf_read_ping_counter;
-always @(posedge clk125)
+reg[11:0] perf_write_cmd_counter;
+reg[15:0] perf_ping_counter;
+reg[11:0] perf_pong_counter;
+reg[11:0] perf_dmaread_counter;
+reg[15:0] perf_read_ping_counter;
+always @(posedge pcie_clk)
 begin 
-    if (~clk125_aresetn) begin
+    if (~pcie_aresetn) begin
 	ping_on <= 0;
 	pong_on <= 0;
 	read_ping_on <= 0;
@@ -1460,15 +1383,15 @@ begin
 end
 
 //performance counters network path
-(* mark_debug = "true" *)reg[11:0] txwrite_counter;
-(* mark_debug = "true" *)reg[11:0] txread_counter;
-(* mark_debug = "true" *)reg[11:0] rx_counter;
-(* mark_debug = "true" *)reg[11:0] rxwrite_counter;
-(* mark_debug = "true" *)reg[11:0] rxread_counter;
+reg[11:0] txwrite_counter;
+reg[11:0] txread_counter;
+reg[11:0] rx_counter;
+reg[11:0] rxwrite_counter;
+reg[11:0] rxread_counter;
 reg txwrite_on;
 reg txread_on;
 reg rx_on;
-always @(posedge axi_clk)
+always @(posedge net_clk)
 begin 
     if (~aresetn_counter) begin
         txwrite_on <= 0;
@@ -1538,19 +1461,19 @@ reg[31:0] rxpart_input_tuple_counter;
 reg[31:0] rxpart_output_tuple_counter;
 reg[31:0] rxpart_output_pkg_counter;
 
-(* mark_debug = "true" *)  reg[15:0]  txpart_cmd_counter;
-(* mark_debug = "true" *)  reg[15:0] txpart_mapping_counter;
-(* mark_debug = "true" *)  reg[31:0] txpart_input_tuple_counter;
+reg[15:0]  txpart_cmd_counter;
+reg[15:0] txpart_mapping_counter;
+reg[31:0] txpart_input_tuple_counter;
 //reg[31:0] txpart_input_pkg_counter;
 
-(* mark_debug = "true" *)  reg[31:0] txpart_output_tuple_counter;
-(* mark_debug = "true" *)  reg[31:0] txpart_output_pkg_counter;
-(* mark_debug = "true" *)  reg[31:0] txpart_local_output_tuple_counter;
-(* mark_debug = "true" *)  reg[31:0] txpart_local_output_pkg_counter;
+reg[31:0] txpart_output_tuple_counter;
+reg[31:0] txpart_output_pkg_counter;
+reg[31:0] txpart_local_output_tuple_counter;
+reg[31:0] txpart_local_output_pkg_counter;
 
 reg[31:0] roce_write_cmd_counter;
 reg[31:0] roce_read_cmd_counter;
-(* mark_debug = "true" *)  reg[31:0] rxpart_write_cmd_counter;
+reg[31:0] rxpart_write_cmd_counter;
 reg[31:0] txpart_write_cmd_counter;
 reg[31:0] txpart_read_cmd_counter;
 
@@ -1559,15 +1482,15 @@ reg[31:0] roce_tx_dma_tuple_counter;
 reg[31:0] roce_tx_local_tuple_counter;
 
 reg[7:0]  axis_stream_down_counter;
-(* mark_debug = "true" *)  reg axis_stream_down;
+reg axis_stream_down;
 reg[7:0]  output_stream_down_counter;
 reg output_stream_down;
 
  //debug
  reg aresetn_counter;
-always @(posedge axi_clk)
+always @(posedge net_clk)
 begin
-    aresetn_counter <= aresetn;
+    aresetn_counter <= net_aresetn;
     if (~aresetn_counter) begin
         rxpart_cmd_counter <= 0;
         rxpart_mapping_counter <= 0;
@@ -1737,7 +1660,7 @@ reg[15:0] tlb_write_input;
 reg[15:0] tlb_read_output;
 reg[15:0] tlb_write_output;
 
-always @(posedge axi_clk)
+always @(posedge net_clk)
 begin 
     if (~aresetn) begin
         tlb_read_input <= 0;
@@ -1765,7 +1688,7 @@ end*/
 
  `ifdef USE_DDR //and USE_DDR
 
-(* mark_debug = "true" *)reg[17:0] rxwritebuf_cmd_counter;
+reg[17:0] rxwritebuf_cmd_counter;
 reg[17:0] rxwritebuf_word_counter;
 reg[17:0] rxwritebuf_sts_counter;
 reg[7:0] rxreadbuf_cmd_counter;
@@ -1776,7 +1699,7 @@ reg[15:0] rxreadbuf_pkg_counter;
 
 reg[7:0] txreadbuf_cmd_counter;
 
-always @(posedge axi_clk)
+always @(posedge net_clk)
 begin
     if (~aresetn) begin
         rxwritebuf_cmd_counter <= 0;
@@ -1837,17 +1760,17 @@ end
 
 `endif
 
-(* mark_debug = "true" *)reg[7:0] bench_write_cmd_counter;
-(* mark_debug = "true" *)reg[15:0] bench_write_data_word_counter;
-(* mark_debug = "true" *)reg[7:0] bench_write_data_pkg_counter;
-(* mark_debug = "true" *)reg[15:0] bench_read_cmd_counter;
-(* mark_debug = "true" *)reg[15:0] bench_read_data_word_counter;
-(* mark_debug = "true" *)reg[7:0] bench_read_data_pkg_counter;
+reg[7:0] bench_write_cmd_counter;
+reg[15:0] bench_write_data_word_counter;
+reg[7:0] bench_write_data_pkg_counter;
+reg[15:0] bench_read_cmd_counter;
+reg[15:0] bench_read_data_word_counter;
+reg[7:0] bench_read_data_pkg_counter;
 
 /* DEBUG boundary_check */
-always @(posedge axi_clk)
+always @(posedge net_clk)
 begin
-    if (~aresetn) begin
+    if (~net_aresetn) begin
         bench_write_cmd_counter <= 0;
         bench_write_data_word_counter <= 0;
         bench_write_data_pkg_counter <= 0;
@@ -1856,7 +1779,7 @@ begin
         bench_read_data_pkg_counter <= 0;
     end
     else begin
-        if (axis_bench_write_cmd_TVALID && axis_bench_write_cmd_TREADY) begin
+        if (axis_bench_write_cmd_tvalid && axis_bench_write_cmd_tready) begin
             bench_write_cmd_counter <= bench_write_cmd_counter + 1;
         end
         if (axis_bench_write_data_tvalid && axis_bench_write_data_tready) begin
@@ -1865,7 +1788,7 @@ begin
                 bench_write_data_pkg_counter <= bench_write_data_pkg_counter + 1;
             end
         end
-        if (axis_bench_read_cmd_TVALID && axis_bench_read_cmd_TREADY) begin
+        if (axis_bench_read_cmd_tvalid && axis_bench_read_cmd_tready) begin
             bench_read_cmd_counter <= bench_read_cmd_counter + 1;
         end
         if (axis_bench_read_data_tvalid && axis_bench_read_data_tready) begin

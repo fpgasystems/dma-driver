@@ -796,7 +796,7 @@ wire tlb_page_crossing_count_valid;
 wire[31:0] tlb_page_crossing_count;
 
 reg[31:0] tlb_miss_counter;
-reg[31:0] tlb_boundary_crossing_counter;
+ reg[31:0] tlb_boundary_crossing_counter;
 
 always @(posedge pcie_clk)
 begin 
@@ -1107,8 +1107,8 @@ example_controller controller_inst(
     //Debug input
 
     //tlb
-    .tlb_miss_counter                   (0), //(tlb_miss_counter), //TODO
-    .tlb_boundary_crossing_counter      (0), //(tlb_boundary_crossing_counter), //TODO
+    .tlb_miss_counter                   (tlb_miss_counter),
+    .tlb_boundary_crossing_counter      (tlb_boundary_crossing_counter),
     //same clock
     .dma_write_cmd_counter              (dma_write_cmd_counter),
     .dma_write_word_counter             (dma_write_word_counter),

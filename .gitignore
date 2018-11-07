@@ -35,7 +35,7 @@ solution*/
 
 #vivado ip files
 *.xml
-hdl/
+#hdl/
 misc/
 sim/
 synth/
