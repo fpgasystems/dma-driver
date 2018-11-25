@@ -27,25 +27,22 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
-`define USE_DDR
+module dma_example_top
+(
+    input  wire [1-1:0] gt_rxp_in,
+    input  wire [1-1:0] gt_rxn_in,
+    output wire [1-1:0] gt_txp_out,
+    output wire [1-1:0] gt_txn_out,
 
-module dma_example_top(
-    // 156.25 MHz clock in
-    input wire                           xphy_refclk_p,
-    input wire                           xphy_refclk_n,
-    // Ethernet Tx & Rx Differential Pairs //  
-    output wire                          xphy0_txp,
-    output wire                          xphy0_txn,
-    input wire                           xphy0_rxp,
-    input wire                           xphy0_rxn,
-    output wire                          xphy1_txp,
-    output wire                          xphy1_txn,
-    input wire                           xphy1_rxp,
-    input wire                           xphy1_rxn,
-    
-    output wire[1:0]                     sfp_tx_disable,
-    output wire                          sfp_on,
-    input  wire                          sfp_ready, //used as reset to sfp
+    input wire             sys_reset,
+    input wire             gt_refclk_p,
+    input wire             gt_refclk_n,
+    input wire             dclk_p,
+    input wire             dclk_n,
+
+    //156.25MHz user clock
+    //input wire             uclk_p,
+    //input wire             uclk_n,
     
     // PCI Express slot PERST# reset signal
     input wire                           perst_n, //TODO rename pcie_rstn
@@ -60,122 +57,120 @@ module dma_example_top(
     input wire   [7:0]                   pcie_rx_n,
     
 `ifdef USE_DDR    
-    // Connection to SODIMM-A
-    // Inouts
-    inout wire [71:0]                    c0_ddr3_dq,
-    inout wire [8:0]                     c0_ddr3_dqs_n,
-    inout wire [8:0]                     c0_ddr3_dqs_p,
-    output wire [15:0]                   c0_ddr3_addr,
-    output wire [2:0]                    c0_ddr3_ba,
-    output wire                          c0_ddr3_ras_n,
-    output wire                          c0_ddr3_cas_n,
-    output wire                          c0_ddr3_we_n,
-    output wire                          c0_ddr3_reset_n,
-    output wire [1:0]                    c0_ddr3_ck_p,
-    output wire [1:0]                    c0_ddr3_ck_n,
-    output wire [1:0]                    c0_ddr3_cke,
-    output wire [1:0]                    c0_ddr3_cs_n,
-    output wire [1:0]                    c0_ddr3_odt,
-    // Differential system clocks
-    input wire                           c0_sys_clk_p,
-    input wire                           c0_sys_clk_n,
-    // differential iodelayctrl clk (reference clock)
-    input wire                           clk_ref_p,
-    input wire                           clk_ref_n,
-    // Inouts
-    inout wire [71:0]                    c1_ddr3_dq,
-    inout wire [8:0]                     c1_ddr3_dqs_n,
-    inout wire [8:0]                     c1_ddr3_dqs_p,
-    output wire [15:0]                   c1_ddr3_addr,
-    output wire [2:0]                    c1_ddr3_ba,
-    output wire                          c1_ddr3_ras_n,
-    output wire                          c1_ddr3_cas_n,
-    output wire                          c1_ddr3_we_n,
-    output wire                          c1_ddr3_reset_n,
-    output wire [1:0]                    c1_ddr3_ck_p,
-    output wire [1:0]                    c1_ddr3_ck_n,
-    output wire [1:0]                    c1_ddr3_cke,
-    output wire [1:0]                    c1_ddr3_cs_n,
-    output wire [1:0]                    c1_ddr3_odt,
-    // Differential system clocks
-    input wire                           c1_sys_clk_p,
-    input wire                           c1_sys_clk_n,             
-    input wire                           pok_dram, //used as reset to ddr
-    output wire[8:0]                     c0_ddr3_dm,
-    output wire[8:0]                     c1_ddr3_dm,
-    output wire[1:0]                     dram_on,
+    //DDR0
+    input wire                   c0_sys_clk_p,
+    input wire                   c0_sys_clk_n,
+    output wire                  c0_ddr4_act_n,
+    output wire[16:0]            c0_ddr4_adr,
+    output wire[1:0]            c0_ddr4_ba,
+    output wire[0:0]            c0_ddr4_bg,
+    output wire[0:0]            c0_ddr4_cke,
+    output wire[0:0]            c0_ddr4_odt,
+    output wire[0:0]            c0_ddr4_cs_n,
+    output wire[0:0]                 c0_ddr4_ck_t,
+    output wire[0:0]                c0_ddr4_ck_c,
+    output wire                 c0_ddr4_reset_n,
+    inout  wire[9:0]            c0_ddr4_dm_dbi_n,
+    inout  wire[79:0]            c0_ddr4_dq,
+    inout  wire[9:0]            c0_ddr4_dqs_t,
+    inout  wire[9:0]            c0_ddr4_dqs_c,
+    
+    //DDR1
+    input wire                   c1_sys_clk_p,
+    input wire                   c1_sys_clk_n,
+    output wire                  c1_ddr4_act_n,
+    output wire[16:0]            c1_ddr4_adr,
+    output wire[1:0]            c1_ddr4_ba,
+    output wire[0:0]            c1_ddr4_bg,
+    output wire[0:0]            c1_ddr4_cke,
+    output wire[0:0]            c1_ddr4_odt,
+    output wire[0:0]            c1_ddr4_cs_n,
+    output wire[0:0]                 c1_ddr4_ck_t,
+    output wire[0:0]                c1_ddr4_ck_c,
+    output wire                 c1_ddr4_reset_n,
+    inout  wire[9:0]            c1_ddr4_dm_dbi_n,
+    inout  wire[79:0]            c1_ddr4_dq,
+    inout  wire[9:0]            c1_ddr4_dqs_t,
+    inout  wire[9:0]            c1_ddr4_dqs_c,
 `endif
-    input wire                           usr_sw,
-    output wire[5:0]                     led);
+    
+    //buttons
+    input wire              button_center,
+    input wire              button_north,
+    input wire              button_west,
+    input wire              button_south,
+    input wire              button_east,
+    
+    input wire[3:0]         gpio_switch,
+    output wire [7:0]       led
+);
 
+wire sys_reset_n;
+wire aclk;
+wire aresetn;
+wire network_init;
+
+wire [2:0] gt_loopback_in_0; 
+wire[3:0] user_rx_reset;
+wire[3:0] user_tx_reset;
+wire gtpowergood_out;
+
+//// For other GT loopback options please change the value appropriately
+//// For example, for internal loopback gt_loopback_in[2:0] = 3'b010;
+//// For more information and settings on loopback, refer GT Transceivers user guide
+
+  wire dclk;
+     IBUFDS #(
+     .DQS_BIAS("FALSE")  // (FALSE, TRUE)
+  )
+  dclk_BUFG_inst (
+     .O(dclk),   // 1-bit output: Buffer output
+     .I(dclk_p),   // 1-bit input: Diff_p buffer input (connect directly to top-level port)
+     .IB(dclk_n)  // 1-bit input: Diff_n buffer input (connect directly to top-level port)
+  );
+
+  /*wire uclk;
+     IBUFDS #(
+     .DQS_BIAS("FALSE")  // (FALSE, TRUE)
+  )
+  uclk_BUFG_inst (
+     .O(uclk),   // 1-bit output: Buffer output
+     .I(uclk_p),   // 1-bit input: Diff_p buffer input (connect directly to top-level port)
+     .IB(uclk_n)  // 1-bit input: Diff_n buffer input (connect directly to top-level port)
+  );*/
+
+BUFG bufg_aresetn(
+   .I(network_init),
+   .O(aresetn)
+);
+
+
+
+assign led[0] = gtpowergood_out;
+assign led[1] = network_init;
 
 // PCIe signals
 wire pcie_lnk_up;
 wire pcie_ref_clk;
-//Network signals    
-wire network_init;
+wire pcie_ref_clk_gt;
 
-(* max_fanout = "64" *)  reg net_aresetn;
-
-assign sfp_on = 1'b1;
-`ifdef USE_DDR
-assign dram_on = 2'b11;
-assign c0_ddr3_dm = 9'h0;
-assign c1_ddr3_dm = 9'h0;
-`else
-wire pok_dram;
-assign pok_dram = 1'b1;
-`endif
-wire net_clk;
-wire clk_ref_200;
 
 
 /*
  * Network Signals
  */
-/*wire        AXI_M_Stream_TVALID;
-wire        AXI_M_Stream_TREADY;
-wire[63:0]  AXI_M_Stream_TDATA;
-wire[7:0]   AXI_M_Stream_TKEEP;
-wire        AXI_M_Stream_TLAST;
-*/
-wire        AXI_M_Stream0_TVALID;
-wire        AXI_M_Stream0_TREADY;
-wire[63:0]  AXI_M_Stream0_TDATA;
-wire[7:0]   AXI_M_Stream0_TKEEP;
-wire        AXI_M_Stream0_TLAST;
+wire        axis_net_rx_data_tvalid;
+wire        axis_net_rx_data_tready;
+wire[63:0]  axis_net_rx_data_tdata;
+wire[7:0]   axis_net_rx_data_tkeep;
+wire        axis_net_rx_data_tlast;
 
-wire        AXI_S_Stream0_TVALID;
-wire        AXI_S_Stream0_TREADY;
-wire[63:0]  AXI_S_Stream0_TDATA;
-wire[7:0]   AXI_S_Stream0_TKEEP;
-wire        AXI_S_Stream0_TLAST;
+wire        axis_net_tx_data_tvalid;
+wire        axis_net_tx_data_tready;
+wire[63:0]  axis_net_tx_data_tdata;
+wire[7:0]   axis_net_tx_data_tkeep;
+wire        axis_net_tx_data_tlast;
 
-wire        AXI_M_Stream1_TVALID;
-wire        AXI_M_Stream1_TREADY;
-wire[63:0]  AXI_M_Stream1_TDATA;
-wire[7:0]   AXI_M_Stream1_TKEEP;
-wire        AXI_M_Stream1_TLAST;
-
-wire        AXI_S_Stream1_TVALID;
-wire        AXI_S_Stream1_TREADY;
-wire[63:0]  AXI_S_Stream1_TDATA;
-wire[7:0]   AXI_S_Stream1_TKEEP;
-wire        AXI_S_Stream1_TLAST;
-
-//TODO remove later
-assign AXI_M_Stream0_TVALID = 1'b0;
-assign AXI_M_Stream0_TDATA = 0;
-assign AXI_M_Stream0_TKEEP = 0;
-assign AXI_M_Stream0_TLAST = 0;
-
-assign AXI_M_Stream1_TVALID = 1'b0;
-assign AXI_M_Stream1_TDATA = 0;
-assign AXI_M_Stream1_TKEEP = 0;
-assign AXI_M_Stream1_TLAST = 0;
-
-assign AXI_S_Stream0_TREADY = 1'b1;
-assign AXI_S_Stream1_TREADY = 1'b1;
 
 
 
@@ -183,73 +178,104 @@ assign AXI_S_Stream1_TREADY = 1'b1;
  * Memory Read and Write Signals
  */
 
-(* mark_debug = "true" *)wire        axis_dma_read_cmd_tvalid;
-(* mark_debug = "true" *)wire        axis_dma_read_cmd_tready;
-(* mark_debug = "true" *)wire[95:0]  axis_dma_read_cmd_tdata;
+wire        axis_dma_read_cmd_tvalid;
+wire        axis_dma_read_cmd_tready;
+wire[95:0]  axis_dma_read_cmd_tdata;
 
-(* mark_debug = "true" *)wire[47:0] axis_dma_read_cmd_addr;
+wire[47:0] axis_dma_read_cmd_addr;
 assign axis_dma_read_cmd_addr = axis_dma_read_cmd_tdata[47:0];
 
 
-(* mark_debug = "true" *)wire        axis_dma_write_cmd_tvalid;
-(* mark_debug = "true" *)wire        axis_dma_write_cmd_tready;
-(* mark_debug = "true" *)wire[95:0]  axis_dma_write_cmd_tdata;
+wire        axis_dma_write_cmd_tvalid;
+wire        axis_dma_write_cmd_tready;
+wire[95:0]  axis_dma_write_cmd_tdata;
 
-(* mark_debug = "true" *)wire[47:0] axis_dma_write_cmd_addr;
+wire[47:0] axis_dma_write_cmd_addr;
 assign axis_dma_write_cmd_addr = axis_dma_write_cmd_tdata[47:0];
+  
+assign axis_net_rx_data_tready = 1'b1;
+assign axis_net_tx_data_tvalid = 1'b0;
+  
+
+network_module network_module_inst
+(
+    .dclk (dclk),
+    .net_clk(aclk),
+    .sys_reset (sys_reset),
+    .aresetn(aresetn),
+    .network_init_done(network_init),
+    
+    .gt_refclk_p(gt_refclk_p),
+    .gt_refclk_n(gt_refclk_n),
+    
+    .gt_rxp_in(gt_rxp_in),
+    .gt_rxn_in(gt_rxn_in),
+    .gt_txp_out(gt_txp_out),
+    .gt_txn_out(gt_txn_out),
+    
+    .user_rx_reset(user_rx_reset),
+    .user_tx_reset(user_tx_reset),
+    .gtpowergood_out(gtpowergood_out),
+    
+    //master 0
+     .m_axis_0_tvalid(axis_net_rx_data_tvalid),
+     .m_axis_0_tready(axis_net_rx_data_tready),
+     .m_axis_0_tdata(axis_net_rx_data_tdata),
+     .m_axis_0_tkeep(axis_net_rx_data_tkeep),
+     .m_axis_0_tlast(axis_net_rx_data_tlast),
+         
+     //slave 0
+     .s_axis_0_tvalid(axis_net_tx_data_tvalid),
+     .s_axis_0_tready(axis_net_tx_data_tready),
+     .s_axis_0_tdata(axis_net_tx_data_tdata),
+     .s_axis_0_tkeep(axis_net_tx_data_tkeep),
+     .s_axis_0_tlast(axis_net_tx_data_tlast)
+    
+     //master 1
+     /*.m_axis_1_tvalid(axis_net_rx_data_tvalid[1]),
+     .m_axis_1_tready(axis_net_rx_data_tready[1]),
+     .m_axis_1_tdata(axis_net_rx_data_tdata[1]),
+     .m_axis_1_tkeep(axis_net_rx_data_tkeep[1]),
+     .m_axis_1_tlast(axis_net_rx_data_tlast[1]),
+         
+     //slave 1
+     .s_axis_1_tvalid(axis_net_tx_data_tvalid[1]),
+     .s_axis_1_tready(axis_net_tx_data_tready[1]),
+     .s_axis_1_tdata(axis_net_tx_data_tdata[1]),
+     .s_axis_1_tkeep(axis_net_tx_data_tkeep[1]),
+     .s_axis_1_tlast(axis_net_tx_data_tlast[1]),
+    
+      //master 2
+     .m_axis_2_tvalid(axis_net_rx_data_tvalid[2]),
+     .m_axis_2_tready(axis_net_rx_data_tready[2]),
+     .m_axis_2_tdata(axis_net_rx_data_tdata[2]),
+     .m_axis_2_tkeep(axis_net_rx_data_tkeep[2]),
+     .m_axis_2_tlast(axis_net_rx_data_tlast[2]),
+         
+     //slave 2
+     .s_axis_2_tvalid(axis_net_tx_data_tvalid[2]),
+     .s_axis_2_tready(axis_net_tx_data_tready[2]),
+     .s_axis_2_tdata(axis_net_tx_data_tdata[2]),
+     .s_axis_2_tkeep(axis_net_tx_data_tkeep[2]),
+     .s_axis_2_tlast(axis_net_tx_data_tlast[2]),
+      
+     //master 3
+     .m_axis_3_tvalid(axis_net_rx_data_tvalid[3]),
+     .m_axis_3_tready(axis_net_rx_data_tready[3]),
+     .m_axis_3_tdata(axis_net_rx_data_tdata[3]),
+     .m_axis_3_tkeep(axis_net_rx_data_tkeep[3]),
+     .m_axis_3_tlast(axis_net_rx_data_tlast[3]),
+         
+     //slave 3
+     .s_axis_3_tvalid(axis_net_tx_data_tvalid[3]),
+     .s_axis_3_tready(axis_net_tx_data_tready[3]),
+     .s_axis_3_tdata(axis_net_tx_data_tdata[3]),
+     .s_axis_3_tkeep(axis_net_tx_data_tkeep[3]),
+     .s_axis_3_tlast(axis_net_tx_data_tlast[3])*/
+
+);
 
 
-/*
- * 10G Network Interface Module
- */
-adm7v3_10g_interface n10g_interface_inst (
-.reset(~perst_n | ~sfp_ready),
-.aresetn(net_aresetn),
-.xphy_refclk_p(xphy_refclk_p),
-.xphy_refclk_n(xphy_refclk_n),
-.xphy0_txp(xphy0_txp),
-.xphy0_txn(xphy0_txn),
-.xphy0_rxp(xphy0_rxp),
-.xphy0_rxn(xphy0_rxn),
-.xphy1_txp(xphy1_txp),
-.xphy1_txn(xphy1_txn),
-.xphy1_rxp(xphy1_rxp),
-.xphy1_rxn(xphy1_rxn),
-//master 0
-.axis_i_0_tdata(AXI_S_Stream0_TDATA),
-.axis_i_0_tvalid(AXI_S_Stream0_TVALID),
-.axis_i_0_tlast(AXI_S_Stream0_TLAST),
-.axis_i_0_tuser(),
-.axis_i_0_tkeep(AXI_S_Stream0_TKEEP),
-.axis_i_0_tready(AXI_S_Stream0_TREADY),
-//slave 0
-.axis_o_0_tdata(AXI_M_Stream0_TDATA),
-.axis_o_0_tvalid(AXI_M_Stream0_TVALID),
-.axis_o_0_tlast(AXI_M_Stream0_TLAST),
-.axis_o_0_tuser(0),
-.axis_o_0_tkeep(AXI_M_Stream0_TKEEP),
-.axis_o_0_tready(AXI_M_Stream0_TREADY),
-
-//master 1
-.axis_i_1_tdata(AXI_S_Stream1_TDATA),
-.axis_i_1_tvalid(AXI_S_Stream1_TVALID),
-.axis_i_1_tlast(AXI_S_Stream1_TLAST),
-.axis_i_1_tuser(),
-.axis_i_1_tkeep(AXI_S_Stream1_TKEEP),
-.axis_i_1_tready(AXI_S_Stream1_TREADY),
-//slave 1
-.axis_o_1_tdata(AXI_M_Stream1_TDATA),
-.axis_o_1_tvalid(AXI_M_Stream1_TVALID),
-.axis_o_1_tlast(AXI_M_Stream1_TLAST),
-.axis_o_1_tuser(0),
-.axis_o_1_tkeep(AXI_M_Stream1_TKEEP),
-.axis_o_1_tready(AXI_M_Stream1_TREADY),  
-
-.sfp_tx_disable(sfp_tx_disable),
-.clk156_out(net_clk),
-.clk_ref_200_out(clk_ref_200),
-.network_reset_done(network_init),
-.led());
 
 
 /*
@@ -262,8 +288,8 @@ adm7v3_10g_interface n10g_interface_inst (
    .s_axis_tready(),    // output wire s_axis_tready
    .s_axis_tdata(set_ip_addr_data),
    
-   .m_axis_aclk(net_clk),        // input wire m_axis_aclk
-   .m_axis_aresetn(net_aresetn),  // input wire m_axis_aresetn
+   .m_axis_aclk(aclk),        // input wire m_axis_aclk
+   .m_axis_aresetn(aresetn),  // input wire m_axis_aresetn
    .m_axis_tvalid(net_ip_address_valid),    // output wire m_axis_tvalid
    .m_axis_tready(1'b1),    // input wire m_axis_tready
    .m_axis_tdata(net_ip_address_data)      // output wire [159 : 0] m_axis_tdata
@@ -276,8 +302,8 @@ axis_clock_converter_32 axis_clock_converter_board_number (
     .s_axis_tready(),    // output wire s_axis_tready
     .s_axis_tdata(set_board_number_data),
     
-    .m_axis_aclk(net_clk),        // input wire m_axis_aclk
-    .m_axis_aresetn(net_aresetn),  // input wire m_axis_aresetn
+    .m_axis_aclk(aclk),        // input wire m_axis_aclk
+    .m_axis_aresetn(aresetn),  // input wire m_axis_aresetn
     .m_axis_tvalid(net_board_number_valid),    // output wire m_axis_tvalid
     .m_axis_tready(1'b1),    // input wire m_axis_tready
     .m_axis_tdata(net_board_number_data)      // output wire [159 : 0] m_axis_tdata
@@ -295,8 +321,8 @@ wire net_board_number_valid;
 wire[3:0] net_board_number_data;
 reg[3:0] board_number;
 
-always @(posedge net_clk) begin
-    if (~net_aresetn) begin
+always @(posedge aclk) begin
+    if (~aresetn) begin
         local_ip_address <= 32'hD1D4010B;
         board_number <= 0;
     end
@@ -340,7 +366,7 @@ reg     [LED_CTR_WIDTH-1:0]           l1_ctr;
 reg     [LED_CTR_WIDTH-1:0]           l2_ctr;
 reg     [LED_CTR_WIDTH-1:0]           l3_ctr;
 
-always @(posedge net_clk)
+always @(posedge aclk)
 begin
     l0_ctr <= l0_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
 end
@@ -349,10 +375,10 @@ always @(posedge c0_ui_clk)
 begin
     l1_ctr <= l1_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
 end
-always @(posedge clk_ref_200)
+/*always @(posedge clk_ref_200)
 begin
     l2_ctr <= l2_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
-end
+end*/
 always @(posedge pcie_clk)
 begin
     l3_ctr <= l3_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
@@ -360,22 +386,22 @@ end
 
 
 
-assign led[0] = network_init & pok_dram & init_calib_complete;
-assign led[1] = pcie_lnk_up;
+/*assign led[0] = network_init & pok_dram & init_calib_complete;
+assign led[1] = pcie_lnk_up;*/
 assign led[2] = l0_ctr[LED_CTR_WIDTH-1];
 assign led[3] = l3_ctr[LED_CTR_WIDTH-1];
-assign led[4] = perst_n & net_aresetn;
+assign led[4] = perst_n & aresetn;
 ///assign led[5] = aresetn;
 
    
-   always @(posedge net_clk) begin
+/*   always @(posedge aclk) begin
         reset156_25_n_r1 <= perst_n & pok_dram & network_init;
         reset156_25_n_r2 <= reset156_25_n_r1;
-        net_aresetn <= reset156_25_n_r2;
+        aresetn <= reset156_25_n_r2;
    end
   
-always @(posedge net_clk) 
-    if (~net_aresetn) begin
+always @(posedge aclk) 
+    if (~aresetn) begin
         c0_init_calib_complete_r1 <= 1'b0;
         c0_init_calib_complete_r2 <= 1'b0;
         c1_init_calib_complete_r1 <= 1'b0;
@@ -389,7 +415,8 @@ always @(posedge net_clk)
     end
 
 assign ddr3_calib_complete = c0_init_calib_complete_r2 & c1_init_calib_complete_r2;
-assign init_calib_complete = ddr3_calib_complete;
+assign init_calib_complete = ddr3_calib_complete;*/
+
 
 
 /*
@@ -544,31 +571,26 @@ benchmark_role user_role(
 );
 
 
+
+
+
 /*
  * DMA Test Bench
  */
- /*wire axis_bench_cmd_valid;
+/* wire axis_bench_cmd_valid;
  reg axis_bench_cmd_ready;
 wire[192:0] axis_bench_cmd_data;
  
-wire axis_pcie_bench_cmd_valid;
-wire axis_pcie_bench_cmd_ready;
-wire[192:0] axis_pcie_bench_cmd_data;
+ /*wire axis_pcie_bench_cmd_valid;
+ wire axis_pcie_bench_cmd_ready;
+ wire[192:0] axis_pcie_bench_cmd_data;*/
  
- (* mark_debug = "true" *)wire        axis_bench_read_cmd_tvalid;
- (* mark_debug = "true" *)wire        axis_bench_read_cmd_tready;
- wire[95:0]  axis_bench_read_cmd_tdata;
-(* mark_debug = "true" *)wire        axis_bench_write_cmd_tvalid;
- (* mark_debug = "true" *)wire        axis_bench_write_cmd_tready;
- wire[95:0]  axis_bench_write_cmd_tdata;
-
- (* mark_debug = "true" *)wire        axis_pcie_bench_read_cmd_tvalid;
- (* mark_debug = "true" *)wire        axis_pcie_bench_read_cmd_tready;
- wire[95:0]  axis_pcie_bench_read_cmd_tdata;
-(* mark_debug = "true" *)wire        axis_pcie_bench_write_cmd_tvalid;
- (* mark_debug = "true" *)wire        axis_pcie_bench_write_cmd_tready;
- wire[95:0]  axis_pcie_bench_write_cmd_tdata;
-
+ /*wire        axis_bench_read_cmd_TVALID;
+ wire        axis_bench_read_cmd_TREADY;
+ wire[95:0]  axis_bench_read_cmd_TDATA;
+wire        axis_bench_write_cmd_TVALID;
+ wire        axis_bench_write_cmd_TREADY;
+ wire[95:0]  axis_bench_write_cmd_TDATA;
  
 wire   axis_bench_write_data_tvalid;
 wire   axis_bench_write_data_tready;
@@ -576,24 +598,12 @@ wire[511:0]   axis_bench_write_data_tdata;
 wire[63:0]  axis_bench_write_data_tkeep;
 wire   axis_bench_write_data_tlast;
 
-wire   axis_pcie_bench_write_data_tvalid;
-wire   axis_pcie_bench_write_data_tready;
-wire[511:0]   axis_pcie_bench_write_data_tdata;
-wire[63:0]  axis_pcie_bench_write_data_tkeep;
-wire   axis_pcie_bench_write_data_tlast;
-
 wire   axis_bench_read_data_tvalid;
 wire   axis_bench_read_data_tready;
 wire[511:0]   axis_bench_read_data_tdata;
 wire[63:0]  axis_bench_read_data_tkeep;
 wire   axis_bench_read_data_tlast;
  
- wire   axis_pcie_bench_read_data_tvalid;
-wire   axis_pcie_bench_read_data_tready;
-wire[511:0]   axis_pcie_bench_read_data_tdata;
-wire[63:0]  axis_pcie_bench_read_data_tkeep;
-wire   axis_pcie_bench_read_data_tlast;
-
 wire execution_cycles_valid;
 wire[63:0] execution_cycles_data;
 reg[63:0] dma_bench_execution_cycles;
@@ -610,8 +620,8 @@ reg dmaBenchStart;
 reg[63:0] debug_cycle_counter;
 reg runBench;
 
-always @(posedge net_clk) begin
-    if (~net_aresetn) begin
+always @(posedge pcie_clk) begin
+    if (~pcie_aresetn) begin
         axis_bench_cmd_ready <= 0;
         runBench <= 0;
     end
@@ -641,12 +651,12 @@ always @(posedge net_clk) begin
 end
  
 dma_bench_ip dma_bench_inst(
- .m_axis_read_cmd_TVALID(axis_bench_read_cmd_tvalid),
- .m_axis_read_cmd_TREADY(axis_bench_read_cmd_tready),
- .m_axis_read_cmd_TDATA(axis_bench_read_cmd_tdata),
- .m_axis_write_cmd_TVALID(axis_bench_write_cmd_tvalid),
- .m_axis_write_cmd_TREADY(axis_bench_write_cmd_tready),
- .m_axis_write_cmd_TDATA(axis_bench_write_cmd_tdata),
+ .m_axis_read_cmd_TVALID(axis_bench_read_cmd_TVALID),
+ .m_axis_read_cmd_TREADY(axis_bench_read_cmd_TREADY),
+ .m_axis_read_cmd_TDATA(axis_bench_read_cmd_TDATA),
+ .m_axis_write_cmd_TVALID(axis_bench_write_cmd_TVALID),
+ .m_axis_write_cmd_TREADY(axis_bench_write_cmd_TREADY),
+ .m_axis_write_cmd_TDATA(axis_bench_write_cmd_TDATA),
  .m_axis_write_data_TVALID(axis_bench_write_data_tvalid),
  .m_axis_write_data_TREADY(axis_bench_write_data_tready),
  .m_axis_write_data_TDATA(axis_bench_write_data_tdata),
@@ -657,8 +667,8 @@ dma_bench_ip dma_bench_inst(
  .s_axis_read_data_TDATA(axis_bench_read_data_tdata),
  .s_axis_read_data_TKEEP(axis_bench_read_data_tkeep),
  .s_axis_read_data_TLAST(axis_bench_read_data_tlast),
- .aresetn(net_aresetn),
- .aclk(net_clk),
+ .aresetn(pcie_aresetn),
+ .aclk(pcie_clk),
  .regBaseAddr_V({16'h00, dmaBenchBaseAddr}),
  .memorySize_V({16'h00, dmaBenchMemorySize}),
  .numberOfAccesses_V(dmaBenchNumberOfAccesses),
@@ -668,74 +678,9 @@ dma_bench_ip dma_bench_inst(
  .start_V(dmaBenchStart),
  .regExecutionCycles_V(execution_cycles_data),
  .regExecutionCycles_V_ap_vld(execution_cycles_valid)
- );
+ );*/
 
 
-axis_clock_converter_96 dma_bench_read_cmd_cc_inst (
-  .s_axis_aresetn(net_aresetn),
-  .s_axis_aclk(net_clk),
-  .s_axis_tvalid(axis_bench_read_cmd_tvalid),
-  .s_axis_tready(axis_bench_read_cmd_tready),
-  .s_axis_tdata(axis_bench_read_cmd_tdata),
-  
-  .m_axis_aresetn(pcie_aresetn),
-  .m_axis_aclk(pcie_clk),
-  .m_axis_tvalid(axis_pcie_bench_read_cmd_tvalid),
-  .m_axis_tready(axis_pcie_bench_read_cmd_tready),
-  .m_axis_tdata(axis_pcie_bench_read_cmd_tdata)
-);
-
-axis_clock_converter_96 dma_bench_write_cmd_cc_inst (
-  .s_axis_aresetn(net_aresetn),
-  .s_axis_aclk(net_clk),
-  .s_axis_tvalid(axis_bench_write_cmd_tvalid),
-  .s_axis_tready(axis_bench_write_cmd_tready),
-  .s_axis_tdata(axis_bench_write_cmd_tdata),
-  
-  .m_axis_aresetn(pcie_aresetn),
-  .m_axis_aclk(pcie_clk),
-  .m_axis_tvalid(axis_pcie_bench_write_cmd_tvalid),
-  .m_axis_tready(axis_pcie_bench_write_cmd_tready),
-  .m_axis_tdata(axis_pcie_bench_write_cmd_tdata)
-);
-
-//axis_clock_converter_512 dma_bench_read_data_cc_inst (
-axis_data_fifo_512_cc dma_bench_read_data_cc_inst (
-  .s_axis_aresetn(pcie_aresetn),
-  .s_axis_aclk(pcie_clk),
-  .s_axis_tvalid(axis_pcie_bench_read_data_tvalid),
-  .s_axis_tready(axis_pcie_bench_read_data_tready),
-  .s_axis_tdata(axis_pcie_bench_read_data_tdata),
-  .s_axis_tkeep(axis_pcie_bench_read_data_tkeep),
-  .s_axis_tlast(axis_pcie_bench_read_data_tlast),
-
-  .m_axis_aresetn(net_aresetn),
-  .m_axis_aclk(net_clk),
-  .m_axis_tvalid(axis_bench_read_data_tvalid),
-  .m_axis_tready(axis_bench_read_data_tready),
-  .m_axis_tdata(axis_bench_read_data_tdata),
-  .m_axis_tkeep(axis_bench_read_data_tkeep),
-  .m_axis_tlast(axis_bench_read_data_tlast)
-);
-
-//axis_clock_converter_512 dma_bench_write_data_cc_inst (
-axis_data_fifo_512_cc dma_bench_write_data_cc_inst (
-  .s_axis_aresetn(net_aresetn),
-  .s_axis_aclk(net_clk),
-  .s_axis_tvalid(axis_bench_write_data_tvalid),
-  .s_axis_tready(axis_bench_write_data_tready),
-  .s_axis_tdata(axis_bench_write_data_tdata),
-  .s_axis_tkeep(axis_bench_write_data_tkeep),
-  .s_axis_tlast(axis_bench_write_data_tlast),
-  
-  .m_axis_aresetn(pcie_aresetn),
-  .m_axis_aclk(pcie_clk),
-  .m_axis_tvalid(axis_pcie_bench_write_data_tvalid),
-  .m_axis_tready(axis_pcie_bench_write_data_tready),
-  .m_axis_tdata(axis_pcie_bench_write_data_tdata),
-  .m_axis_tkeep(axis_pcie_bench_write_data_tkeep),
-  .m_axis_tlast(axis_pcie_bench_write_data_tlast)
-);*/
 
 /*
  * TLB wires
@@ -743,121 +688,100 @@ axis_data_fifo_512_cc dma_bench_write_data_cc_inst (
 
 /*wire axis_tlb_interface_valid;
 wire axis_tlb_interface_ready;
-wire[135:0] axis_tlb_interface_data;*/
+wire[135:0] axis_tlb_interface_data;
 
-/*wire        axis_dma_read_cmd_to_tlb_tvalid; //TODO rename
-wire        axis_dma_read_cmd_to_tlb_tready;
-wire[95:0]  axis_dma_read_cmd_to_tlb_tdata;
-wire        axis_dma_write_cmd_to_tlb_tvalid;
-wire        axis_dma_write_cmd_to_tlb_tready;
-wire[95:0]  axis_dma_write_cmd_to_tlb_tdata;*/
+wire        axis_dma_read_cmd_to_clk_tvalid;
+wire        axis_dma_read_cmd_to_clk_tready;
+wire[95:0]  axis_dma_read_cmd_to_clk_tdata;
+wire        axis_dma_write_cmd_to_clk_tvalid;
+wire        axis_dma_write_cmd_to_clk_tready;
+wire[95:0]  axis_dma_write_cmd_to_clk_tdata;
+
+
+wire        axis_pcie_dma_read_cmd_tvalid;
+wire         axis_pcie_dma_read_cmd_tready;
+wire[95:0]  axis_pcie_dma_read_cmd_tdata;
+wire        axis_pcie_dma_write_cmd_tvalid;
+wire         axis_pcie_dma_write_cmd_tready;
+wire[95:0]  axis_pcie_dma_write_cmd_tdata;
+
 
 
 //PCIe clock
-/*wire        axis_dma_write_data_to_width_tvalid;
-wire        axis_dma_write_data_to_width_tready;
-wire[511:0] axis_dma_write_data_to_width_tdata;
-wire[63:0]  axis_dma_write_data_to_width_tkeep;
-wire        axis_dma_write_data_to_width_tlast;*/
+wire        axis_dma_write_width_tvalid;
+wire        axis_dma_write_width_tready;
+wire[511:0] axis_dma_write_width_tdata;
+wire[63:0]  axis_dma_write_width_tkeep;
+wire        axis_dma_write_width_tlast;*/
 
-(* mark_debug = "true" *)wire        axis_dma_write_data_tvalid;
-(* mark_debug = "true" *)wire        axis_dma_write_data_tready;
-wire[511:0] axis_dma_write_data_tdata;
+wire        axis_dma_write_data_tvalid;
+wire        axis_dma_write_data_tready;
+wire[512:0] axis_dma_write_data_tdata;
 wire[63:0]  axis_dma_write_data_tkeep;
-(* mark_debug = "true" *)wire        axis_dma_write_data_tlast;
+wire        axis_dma_write_data_tlast;
 
 
 //PCIe clock
-(* mark_debug = "true" *)wire        axis_dma_read_data_tvalid;
-(* mark_debug = "true" *)wire        axis_dma_read_data_tready;
-wire[511:0] axis_dma_read_data_tdata;
+wire        axis_dma_read_data_tvalid;
+wire        axis_dma_read_data_tready;
+wire[512:0] axis_dma_read_data_tdata;
 wire[63:0]  axis_dma_read_data_tkeep;
-(* mark_debug = "true" *)wire        axis_dma_read_data_tlast;
+wire        axis_dma_read_data_tlast;
 
+
+/*wire axis_write_data_boundary_to_cc_tvalid;
+wire axis_write_data_boundary_to_cc_tready;
+wire[511:0] axis_write_data_boundary_to_cc_tdata;
+wire[63:0] axis_write_data_boundary_to_cc_tkeep;
+wire axis_write_data_boundary_to_cc_tlast;
 
 //read
-/*assign axis_dma_read_cmd_to_tlb_tvalid = axis_pcie_bench_read_cmd_tvalid;
-assign axis_pcie_bench_read_cmd_tready = axis_dma_read_cmd_to_tlb_tready;
-assign axis_dma_read_cmd_to_tlb_tdata = axis_pcie_bench_read_cmd_tdata;
+assign axis_dma_read_cmd_tvalid = axis_bench_read_cmd_TVALID;
+assign axis_bench_read_cmd_TREADY = axis_dma_read_cmd_tready;
+assign axis_dma_read_cmd_tdata = axis_bench_read_cmd_TDATA;
 
 mem_write_cmd_page_boundary_check_512_ip mem_write_cmd_page_boundary_check_inst (
-  .regBaseVaddr_V(regBaseVaddrBoundCheck),          // input wire [63 : 0] regBaseVaddr_V
-  .m_axis_cmd_TVALID(axis_dma_write_cmd_to_tlb_tvalid),    // output wire m_axis_cmd_TVALID
-  .m_axis_cmd_TREADY(axis_dma_write_cmd_to_tlb_tready),    // input wire m_axis_cmd_TREADY
-  .m_axis_cmd_TDATA(axis_dma_write_cmd_to_tlb_tdata),      // output wire [95 : 0] m_axis_cmd_TDATA
-  .m_axis_data_TVALID(axis_dma_write_data_tvalid),  // output wire m_axis_data_TVALID
-  .m_axis_data_TREADY(axis_dma_write_data_tready),  // input wire m_axis_data_TREADY
-  .m_axis_data_TDATA(axis_dma_write_data_tdata),    // output wire [63 : 0] m_axis_data_TDATA
-  .m_axis_data_TKEEP(axis_dma_write_data_tkeep),    // output wire [7 : 0] m_axis_data_TKEEP
-  .m_axis_data_TLAST(axis_dma_write_data_tlast),    // output wire [0 : 0] m_axis_data_TLAST
-  .s_axis_cmd_TVALID(axis_pcie_bench_write_cmd_tvalid),    // input wire s_axis_cmd_TVALID
-  .s_axis_cmd_TREADY(axis_pcie_bench_write_cmd_tready),    // output wire s_axis_cmd_TREADY
-  .s_axis_cmd_TDATA(axis_pcie_bench_write_cmd_tdata),      // input wire [95 : 0] s_axis_cmd_TDATA
-  .s_axis_data_TVALID(axis_pcie_bench_write_data_tvalid),  // input wire s_axis_data_TVALID
-  .s_axis_data_TREADY(axis_pcie_bench_write_data_tready),  // output wire s_axis_data_TREADY
-  .s_axis_data_TDATA(axis_pcie_bench_write_data_tdata),    // input wire [63 : 0] s_axis_data_TDATA
-  .s_axis_data_TKEEP(axis_pcie_bench_write_data_tkeep),    // input wire [7 : 0] s_axis_data_TKEEP
-  .s_axis_data_TLAST(axis_pcie_bench_write_data_tlast),    // input wire [0 : 0] s_axis_data_TLAST
+  .regBaseVaddr_V({16'h0000, regBaseVaddrBoundCheck}),          // input wire [63 : 0] regBaseVaddr_V
+  .m_axis_cmd_TVALID(axis_dma_write_cmd_tvalid),    // output wire m_axis_cmd_TVALID
+  .m_axis_cmd_TREADY(axis_dma_write_cmd_tready),    // input wire m_axis_cmd_TREADY
+  .m_axis_cmd_TDATA(axis_dma_write_cmd_tdata),      // output wire [95 : 0] m_axis_cmd_TDATA
+  .m_axis_data_TVALID(axis_write_data_boundary_to_cc_tvalid),  // output wire m_axis_data_TVALID
+  .m_axis_data_TREADY(axis_write_data_boundary_to_cc_tready),  // input wire m_axis_data_TREADY
+  .m_axis_data_TDATA(axis_write_data_boundary_to_cc_tdata),    // output wire [63 : 0] m_axis_data_TDATA
+  .m_axis_data_TKEEP(axis_write_data_boundary_to_cc_tkeep),    // output wire [7 : 0] m_axis_data_TKEEP
+  .m_axis_data_TLAST(axis_write_data_boundary_to_cc_tlast),    // output wire [0 : 0] m_axis_data_TLAST
+  .s_axis_cmd_TVALID(axis_bench_write_cmd_TVALID),    // input wire s_axis_cmd_TVALID
+  .s_axis_cmd_TREADY(axis_bench_write_cmd_TREADY),    // output wire s_axis_cmd_TREADY
+  .s_axis_cmd_TDATA(axis_bench_write_cmd_TDATA),      // input wire [95 : 0] s_axis_cmd_TDATA
+  .s_axis_data_TVALID(axis_bench_write_data_tvalid),  // input wire s_axis_data_TVALID
+  .s_axis_data_TREADY(axis_bench_write_data_tready),  // output wire s_axis_data_TREADY
+  .s_axis_data_TDATA(axis_bench_write_data_tdata),    // input wire [63 : 0] s_axis_data_TDATA
+  .s_axis_data_TKEEP(axis_bench_write_data_tkeep),    // input wire [7 : 0] s_axis_data_TKEEP
+  .s_axis_data_TLAST(axis_bench_write_data_tlast),    // input wire [0 : 0] s_axis_data_TLAST
   .aclk(pcie_clk),                              // input wire aclk
   .aresetn(pcie_aresetn)                        // input wire aresetn
 );
 
-wire axis_dma_read_data_width_to_clk_tvalid;
-wire axis_dma_read_data_width_to_clk_tready;
-wire[511:0] axis_dma_read_data_width_to_clk_tdata;
-wire[63:0] axis_dma_read_data_width_to_clk_tkeep;
-wire axis_dma_read_data_width_to_clk_tlast;
-
-axis_256_to_512_converter dma_read_data_width_converter (
-  .aclk(pcie_clk),                    // input wire aclk
-  .aresetn(pcie_aresetn),              // input wire aresetn
-  .s_axis_tvalid(axis_dma_read_data_tvalid),  // input wire s_axis_tvalid
-  .s_axis_tready(axis_dma_read_data_tready),  // output wire s_axis_tready
-  .s_axis_tdata(axis_dma_read_data_tdata),    // input wire [255 : 0] s_axis_tdata
-  .s_axis_tkeep(axis_dma_read_data_tkeep),    // input wire [31 : 0] s_axis_tkeep
-  .s_axis_tlast(axis_dma_read_data_tlast),    // input wire s_axis_tlast
-  .m_axis_tvalid(axis_dma_read_data_width_to_clk_tvalid),  // output wire m_axis_tvalid
-  .m_axis_tready(axis_dma_read_data_width_to_clk_tready),  // input wire m_axis_tready
-  .m_axis_tdata(axis_dma_read_data_width_to_clk_tdata),    // output wire [511 : 0] m_axis_tdata
-  .m_axis_tkeep(axis_dma_read_data_width_to_clk_tkeep),    // output wire [63 : 0] m_axis_tkeep
-  .m_axis_tlast(axis_dma_read_data_width_to_clk_tlast)    // output wire m_axis_tlast
-);*/
-
-/*assign axis_dma_write_data_tvalid = axis_pcie_bench_write_data_tvalid;
-assign axis_pcie_bench_write_data_tready = axis_dma_write_data_tready;
-assign axis_dma_write_data_tdata = axis_pcie_bench_write_data_tdata;
-assign axis_dma_write_data_tkeep = axis_pcie_bench_write_data_tkeep;
-assign axis_dma_write_data_tlast = axis_pcie_bench_write_data_tlast;
-
-assign axis_pcie_bench_read_data_tvalid = axis_dma_read_data_tvalid;
-assign axis_dma_read_data_tready = axis_pcie_bench_read_data_tready;
-assign axis_pcie_bench_read_data_tdata = axis_dma_read_data_tdata;
-assign axis_pcie_bench_read_data_tkeep = axis_dma_read_data_tkeep;
-assign axis_pcie_bench_read_data_tlast = axis_dma_read_data_tlast;*/
+assign axis_bench_read_data_tvalid = axis_dma_read_data_tvalid;
+assign axis_dma_read_data_tready = axis_bench_read_data_tready;
+assign axis_bench_read_data_tdata = axis_dma_read_data_tdata;
+assign axis_bench_read_data_tkeep = axis_dma_read_data_tkeep;
+assign axis_bench_read_data_tlast = axis_dma_read_data_tlast;*/
 
 
-wire GND_1;
-
-GND GND(.G(GND_1));
-       
-       
-       IBUFDS_GTE2 #(
-            .CLKCM_CFG("TRUE"),   // Refer to Transceiver User Guide
-            .CLKRCV_TRST("TRUE"), // Refer to Transceiver User Guide
-            .CLKSWING_CFG(2'b11)  // Refer to Transceiver User Guide
-         )
-         IBUFDS_GTE2_inst (
-            .O(pcie_ref_clk),         // 1-bit output: Refer to Transceiver User Guide
-            .ODIV2(),            // 1-bit output: Refer to Transceiver User Guide
-            .CEB(GND_1),          // 1-bit input: Refer to Transceiver User Guide
-            .I(pcie_clk_p),        // 1-bit input: Refer to Transceiver User Guide
-            .IB(pcie_clk_n)        // 1-bit input: Refer to Transceiver User Guide
+IBUFDS_GTE4 pcie_ibuf_inst (
+    .O(pcie_ref_clk_gt),         // 1-bit output: Refer to Transceiver User Guide
+    .ODIV2(pcie_ref_clk),            // 1-bit output: Refer to Transceiver User Guide
+    .CEB(1'b0),          // 1-bit input: Refer to Transceiver User Guide
+    .I(pcie_clk_p),        // 1-bit input: Refer to Transceiver User Guide
+    .IB(pcie_clk_n)        // 1-bit input: Refer to Transceiver User Guide
 );
-
 
 /*
  * Memory Interface
  */
+
+
 (* mark_debug = "true" *)wire        axis_user_read_mem0_cmd_tvalid;
 (* mark_debug = "true" *)wire        axis_user_read_mem0_cmd_tready;
 wire[95:0]  axis_user_read_mem0_cmd_tdata;
@@ -1002,8 +926,6 @@ wire                                    c1_s_axi_rvalid;
 mem_single_inf  mem_inf_inst0(
 .user_clk(net_clk),
 .user_aresetn(ddr3_calib_complete),
-.pcie_clk(pcie_clk), //TODO remove
-.pcie_aresetn(pcie_aresetn),
 .mem_clk(mem0_clk),
 .mem_aresetn(mem0_aresetn),
 
@@ -1111,8 +1033,6 @@ mem_single_inf  mem_inf_inst0(
 mem_single_inf  mem_inf_inst1(
 .user_clk(net_clk),
 .user_aresetn(ddr3_calib_complete),
-.pcie_clk(pcie_clk),
-.pcie_aresetn(pcie_aresetn), //TODO remove
 .mem_clk(mem1_clk),
 .mem_aresetn(mem1_aresetn),
 
@@ -1174,7 +1094,6 @@ mem_single_inf  mem_inf_inst1(
 .s_axil_rresp(axil_to_modules_rresp[AxilPortDDR1]),                // input wire [1 : 0] m_axil_rresp
 .s_axil_rvalid(axil_to_modules_rvalid[AxilPortDDR1]),              // input wire m_axil_rvalid
 .s_axil_rready(axil_to_modules_rready[AxilPortDDR1]),              // output wire m_axil_rready
-
 
 
 /* DRIVER INTERFACE */
@@ -1402,12 +1321,15 @@ assign axis_user_write_mem1_status_tdata = 0;
 
 
 
+
+
 //get Base Addr of TLB for page boundary check
-/*reg[47:0] regBaseVaddr;
+/*reg[63:0] regBaseVaddr;
 reg[47:0] regBaseVaddrBoundCheck;
 always @(posedge pcie_clk)
 begin 
     if (~pcie_aresetn) begin
+        //regBaseVaddr <= 0;
     end
     else begin
         if (axis_tlb_interface_valid && axis_tlb_interface_ready && axis_tlb_interface_data[128]) begin
@@ -1415,63 +1337,128 @@ begin
             regBaseVaddrBoundCheck <= regBaseVaddr;
         end
     end
-end*/
+end
 
 
-/*axis_512_to_256_converter pcie_axis_write_data_512_256 (
-  .aclk(pcie_clk),                    // input wire aclk
-  .aresetn(pcie_aresetn),              // input wire aresetn
-  .s_axis_tvalid(axis_dma_write_data_to_width_tvalid),  // input wire s_axis_tvalid
-  .s_axis_tready(axis_dma_write_data_to_width_tready),  // output wire s_axis_tready
-  .s_axis_tdata(axis_dma_write_data_to_width_tdata),    // input wire [511 : 0] s_axis_tdata
-  .s_axis_tkeep(axis_dma_write_data_to_width_tkeep),    // input wire [63 : 0] s_axis_tkeep
-  .s_axis_tlast(axis_dma_write_data_to_width_tlast),    // input wire s_axis_tlast
-  .m_axis_tvalid(axis_dma_write_data_tvalid),  // output wire m_axis_tvalid
-  .m_axis_tready(axis_dma_write_data_tready),  // input wire m_axis_tready
-  .m_axis_tdata(axis_dma_write_data_tdata),    // output wire [255 : 0] m_axis_tdata
-  .m_axis_tkeep(axis_dma_write_data_tkeep),    // output wire [31 : 0] m_axis_tkeep
-  .m_axis_tlast(axis_dma_write_data_tlast)    // output wire m_axis_tlast
+//we now use 512bit width
+assign axis_dma_write_data_tvalid = axis_write_data_boundary_to_cc_tvalid;
+assign axis_write_data_boundary_to_cc_tready = axis_dma_write_data_tready;
+assign axis_dma_write_data_tdata = axis_write_data_boundary_to_cc_tdata;
+assign axis_dma_write_data_tkeep = axis_write_data_boundary_to_cc_tkeep;
+assign axis_dma_write_data_tlast = axis_write_data_boundary_to_cc_tlast;*/
+
+/*
+ * TLB
+ */
+/*wire tlb_miss_count_valid;
+wire[31:0] tlb_miss_count;
+wire tlb_page_crossing_count_valid;
+wire[31:0] tlb_page_crossing_count;
+
+reg[31:0] tlb_miss_counter;
+ reg[31:0] tlb_boundary_crossing_counter;
+
+always @(posedge pcie_clk)
+begin 
+    if (~pcie_aresetn) begin
+        tlb_miss_counter <= 0;
+        tlb_boundary_crossing_counter <= 0;
+    end
+    else begin
+        if (tlb_miss_count_valid) begin
+            tlb_miss_counter <= tlb_miss_count;
+        end
+        if (tlb_page_crossing_count_valid) begin
+            tlb_boundary_crossing_counter <= tlb_page_crossing_count;
+        end
+    end
+end
+
+
+assign pcie_dma_bench_execution_cycles = dma_bench_execution_cycles;
+
+ tlb_ip tlb_inst (
+   .m_axis_dma_read_cmd_TVALID(axis_dma_read_cmd_to_clk_tvalid),    // output wire m_axis_dma_read_cmd_tvalid
+   .m_axis_dma_read_cmd_TREADY(axis_dma_read_cmd_to_clk_tready),    // input wire m_axis_dma_read_cmd_tready
+   .m_axis_dma_read_cmd_TDATA(axis_dma_read_cmd_to_clk_tdata),      // output wire [95 : 0] m_axis_dma_read_cmd_tdata
+   .m_axis_dma_write_cmd_TVALID(axis_dma_write_cmd_to_clk_tvalid),  // output wire m_axis_dma_write_cmd_tvalid
+   .m_axis_dma_write_cmd_TREADY(axis_dma_write_cmd_to_clk_tready),  // input wire m_axis_dma_write_cmd_tready
+   .m_axis_dma_write_cmd_TDATA(axis_dma_write_cmd_to_clk_tdata),    // output wire [95 : 0] m_axis_dma_write_cmd_tdata
+   .s_axis_mem_read_cmd_TVALID(axis_dma_read_cmd_tvalid),    // input wire s_axis_mem_read_cmd_tvalid
+   .s_axis_mem_read_cmd_TREADY(axis_dma_read_cmd_tready),    // output wire s_axis_mem_read_cmd_tready
+   .s_axis_mem_read_cmd_TDATA(axis_dma_read_cmd_tdata),      // input wire [111 : 0] s_axis_mem_read_cmd_tdata
+   .s_axis_mem_write_cmd_TVALID(axis_dma_write_cmd_tvalid),  // input wire s_axis_mem_write_cmd_tvalid
+   .s_axis_mem_write_cmd_TREADY(axis_dma_write_cmd_tready),  // output wire s_axis_mem_write_cmd_tready
+   .s_axis_mem_write_cmd_TDATA(axis_dma_write_cmd_tdata),    // input wire [111 : 0] s_axis_mem_write_cmd_tdata
+   .s_axis_tlb_interface_TVALID(axis_tlb_interface_valid),  // input wire s_axis_tlb_interface_tvalid
+   .s_axis_tlb_interface_TREADY(axis_tlb_interface_ready),  // output wire s_axis_tlb_interface_tready
+   .s_axis_tlb_interface_TDATA(axis_tlb_interface_data),    // input wire [135 : 0] s_axis_tlb_interface_tdata
+   .aclk(pcie_clk),                                                // input wire aclk
+   .aresetn(pcie_aresetn),                                          // input wire aresetn
+   .regTlbMissCount_V(tlb_miss_count),                      // output wire [31 : 0] regTlbMissCount_V
+   .regTlbMissCount_V_ap_vld(tlb_miss_count_valid),
+   .regPageCrossingCount_V(tlb_page_crossing_count),                // output wire [31 : 0] regPageCrossingCount_V
+   .regPageCrossingCount_V_ap_vld(tlb_page_crossing_count_valid)  // output wire regPageCrossingCount_V_ap_vld
+ );
+
+
+wire dma_write_fifo_to_clk_tvalid;
+wire dma_write_fifo_to_clk_tready;
+wire[95:0] dma_write_fifo_to_clk_tdata;
+
+axis_data_fifo_96 axis_dma_write_cmd_fifo (
+  .s_axis_aclk(pcie_clk),                    // input wire aclk
+  .s_axis_aresetn(pcie_aresetn),              // input wire aresetn
+  .s_axis_tvalid(axis_dma_write_cmd_to_clk_tvalid),  // input wire s_axis_tvalid
+  .s_axis_tready(axis_dma_write_cmd_to_clk_tready),  // output wire s_axis_tready
+  .s_axis_tdata(axis_dma_write_cmd_to_clk_tdata),    // input wire [95 : 0] s_axis_tdata
+  .m_axis_tvalid(dma_write_fifo_to_clk_tvalid),  // output wire m_axis_tvalid
+  .m_axis_tready(dma_write_fifo_to_clk_tready),  // input wire m_axis_tready
+  .m_axis_tdata(dma_write_fifo_to_clk_tdata),    // output wire [95 : 0] m_axis_tdata
+  .axis_data_count(),
+  .axis_wr_data_count(),
+  .axis_rd_data_count()
+);
+
+//TODO make clock crossing fifo
+assign axis_pcie_dma_write_cmd_tvalid = dma_write_fifo_to_clk_tvalid;
+assign dma_write_fifo_to_clk_tready = axis_pcie_dma_write_cmd_tready;
+assign axis_pcie_dma_write_cmd_tdata = dma_write_fifo_to_clk_tdata;
+assign axis_pcie_dma_read_cmd_tvalid = axis_dma_read_cmd_to_clk_tvalid;
+assign axis_dma_read_cmd_to_clk_tready = axis_pcie_dma_read_cmd_tready;
+assign axis_pcie_dma_read_cmd_tdata = axis_dma_read_cmd_to_clk_tdata;
+
+/*axis_clock_converter_96 axis_dma_write_cmd_clk_crossing (
+  .s_axis_aresetn(aresetn),  // input wire s_axis_aresetn
+  .s_axis_aclk(aclk),        // input wire s_axis_aclk
+  .s_axis_tvalid(dma_write_fifo_to_clk_tvalid),    // input wire s_axis_tvalid
+  .s_axis_tready(dma_write_fifo_to_clk_tready),    // output wire s_axis_tready
+  .s_axis_tdata(dma_write_fifo_to_clk_tdata),      // input wire [95 : 0] s_axis_tdata
+  
+  .m_axis_aresetn(pcie_aresetn),  // input wire m_axis_aresetn
+  .m_axis_aclk(pcie_clk),        // input wire m_axis_aclk
+  .m_axis_tvalid(axis_pcie_dma_write_cmd_tvalid),    // output wire m_axis_tvalid
+  .m_axis_tready(axis_pcie_dma_write_cmd_tready),    // input wire m_axis_tready
+  .m_axis_tdata(axis_pcie_dma_write_cmd_tdata)      // output wire [95 : 0] m_axis_tdata
+);
+
+axis_clock_converter_96 axis_dma_read_cmd_clk_crossing (
+  .s_axis_aresetn(aresetn),  // input wire s_axis_aresetn
+  .s_axis_aclk(aclk),        // input wire s_axis_aclk
+  .s_axis_tvalid(axis_dma_read_cmd_to_clk_tvalid),    // input wire s_axis_tvalid
+  .s_axis_tready(axis_dma_read_cmd_to_clk_tready),    // output wire s_axis_tready
+  .s_axis_tdata(axis_dma_read_cmd_to_clk_tdata),      // input wire [95 : 0] s_axis_tdata
+  
+  .m_axis_aresetn(pcie_aresetn),  // input wire m_axis_aresetn
+  .m_axis_aclk(pcie_clk),        // input wire m_axis_aclk
+  .m_axis_tvalid(axis_pcie_dma_read_cmd_tvalid),    // output wire m_axis_tvalid
+  .m_axis_tready(axis_pcie_dma_read_cmd_tready),    // input wire m_axis_tready
+  .m_axis_tdata(axis_pcie_dma_read_cmd_tdata)      // output wire [95 : 0] m_axis_tdata
 );*/
-
-
-/*axis_clock_converter_200 axis_dma_bench_cmd_clock_converter_inst (
-    .s_axis_aresetn(pcie_aresetn),  // input wire s_axis_aresetn
-    .s_axis_aclk(pcie_clk),        // input wire s_axis_aclk
-    
-    .s_axis_tvalid(axis_pcie_bench_cmd_valid),    // input wire s_axis_tvalid
-    .s_axis_tready(axis_pcie_bench_cmd_ready),    // output wire s_axis_tready
-    .s_axis_tdata(axis_pcie_bench_cmd_data),      // input wire [143 : 0] s_axis_tdata
-    
-    .m_axis_aclk(net_clk),        // input wire m_axis_aclk
-    .m_axis_aresetn(net_aresetn),  // input wire m_axis_aresetn
-      
-    .m_axis_tvalid(axis_bench_cmd_valid),    // output wire m_axis_tvalid
-    .m_axis_tready(axis_bench_cmd_ready),    // input wire m_axis_tready
-    .m_axis_tdata(axis_bench_cmd_data)      // output wire [143 : 0] m_axis_tdata
-  );*/
- 
-/*axis_clock_converter_64 axis_dma_bench_cycles_clock_converter_inst (
-    .s_axis_aresetn(net_aresetn),  // input wire s_axis_aresetn
-    .s_axis_aclk(net_clk),        // input wire s_axis_aclk
-    
-    .s_axis_tvalid(1'b1),    // input wire s_axis_tvalid
-    .s_axis_tready(),    // output wire s_axis_tready
-    .s_axis_tdata(dma_bench_execution_cycles),      // input wire [143 : 0] s_axis_tdata
-    
-    .m_axis_aclk(pcie_clk),        // input wire m_axis_aclk
-    .m_axis_aresetn(pcie_aresetn),  // input wire m_axis_aresetn
-      
-    .m_axis_tvalid(),    // output wire m_axis_tvalid
-    .m_axis_tready(1'b1),    // input wire m_axis_tready
-    .m_axis_tdata(pcie_dma_bench_execution_cycles)      // output wire [143 : 0] m_axis_tdata
-  );*/
-
-
 
 /*
  * DMA
  */
-
 //address write
 (* mark_debug = "true" *)wire [31: 0] axil_awaddr;
 (* mark_debug = "true" *)wire  axil_awvalid;
@@ -1501,25 +1488,6 @@ wire [1:0] axil_rresp;
 
 
 
-reg led_light;
-assign led[5] = pcie_aresetn; //led_light;
-
-always @(posedge pcie_clk)
-begin 
-    if (~pcie_aresetn) begin
-        led_light <= 1'b0;
-    end
-    else begin
-        /*if (pcie_axil_wvalid) begin
-            led_light <= ~led_light;
-        end*/
-    end
-end
-
-
-/*
- * DMA Interface
- */
 wire        axis_c2h_tvalid_0;
 wire        axis_c2h_tready_0;
 wire[511:0] axis_c2h_tdata_0;
@@ -1571,7 +1539,7 @@ dma_inf dma_interface (
 
     /* DRIVER INTERFACE */
     // LITE interface
-    //-- AXI Master Write Address Channel
+   //-- AXI Master Write Address Channel
     .s_axil_awaddr(axil_to_modules_awaddr[AxilPortDMA]),              // output wire [31 : 0] m_axil_awaddr
     .s_axil_awprot(),              // output wire [2 : 0] m_axil_awprot
     .s_axil_awvalid(axil_to_modules_awvalid[AxilPortDMA]),            // output wire m_axil_awvalid
@@ -1756,679 +1724,6 @@ dma_driver dma_driver_inst (
     .m_axil_rready(axil_to_modules_rready)              // output wire m_axil_rready
 
 );
-
-/*example_controller controller_inst(
-    .aclk(pcie_clk),
-    .aresetn(pcie_aresetn),
-    .net_aclk(net_clk),
-    .net_aresetn(net_aresetn),
-    
-     // AXI Lite Master Interface connections
-    .s_axil_awaddr  (pcie_axil_awaddr[31:0]),
-    .s_axil_awvalid (pcie_axil_awvalid),
-    .s_axil_awready (pcie_axil_awready),
-    .s_axil_wdata   (pcie_axil_wdata[31:0]),    // block fifo for AXI lite only 31 bits.
-    .s_axil_wstrb   (pcie_axil_wstrb[3:0]),
-    .s_axil_wvalid  (pcie_axil_wvalid),
-    .s_axil_wready  (pcie_axil_wready),
-    .s_axil_bresp   (pcie_axil_bresp),
-    .s_axil_bvalid  (pcie_axil_bvalid),
-    .s_axil_bready  (pcie_axil_bready),
-    .s_axil_araddr  (pcie_axil_araddr[31:0]),
-    .s_axil_arvalid (pcie_axil_arvalid),
-    .s_axil_arready (pcie_axil_arready),
-    .s_axil_rdata   (pcie_axil_rdata),   // block ram for AXI Lite is only 31 bits
-    .s_axil_rresp   (pcie_axil_rresp),
-    .s_axil_rvalid  (pcie_axil_rvalid),
-    .s_axil_rready  (pcie_axil_rready),
-    
-    // Control streams
-    .m_axis_tlb_interface_valid        (axis_tlb_interface_valid),
-    .m_axis_tlb_interface_ready        (axis_tlb_interface_ready),
-    .m_axis_tlb_interface_data         (axis_tlb_interface_data),
-    .m_axis_dma_bench_cmd_valid        (axis_pcie_bench_cmd_valid),
-    .m_axis_dma_bench_cmd_ready        (axis_pcie_bench_cmd_ready),
-    .m_axis_dma_bench_cmd_data         (axis_pcie_bench_cmd_data),
-    
-    //Host ARP lookup
-    .m_axis_host_arp_lookup_request_TVALID(axis_pcie_host_arp_lookup_request_TVALID),
-    .m_axis_host_arp_lookup_request_TREADY(axis_pcie_host_arp_lookup_request_TREADY),
-    .m_axis_host_arp_lookup_request_TDATA(axis_pcie_host_arp_lookup_request_TDATA),
-    .s_axis_host_arp_lookup_reply_TVALID(axis_pcie_host_arp_lookup_reply_TVALID),
-    .s_axis_host_arp_lookup_reply_TREADY(axis_pcie_host_arp_lookup_reply_TREADY),
-    .s_axis_host_arp_lookup_reply_TDATA(axis_pcie_host_arp_lookup_reply_TDATA),
-    
-    //Debug input
-    //axi clock
-    //general
-    //.roce_crc_pkg_drop_count           (regCrcDropPkgCount),
-    //.roce_psn_pkg_drop_count           (regInvalidPsnDropCount),
-    //rxpart
-    //mem cmd
-    .roce_write_cmd_counter            (roce_write_cmd_counter),
-    .roce_read_cmd_counter             (roce_read_cmd_counter),
-    .rxpart_write_cmd_counter          (rxpart_write_cmd_counter),
-    .txpart_write_cmd_counter          (txpart_write_cmd_counter),
-    .txpart_read_cmd_counter           (txpart_read_cmd_counter),
-    //roce
-    .roce_rx_tuple_counter              (roce_rx_tuple_counter),
-    .roce_tx_dma_tuple_counter          (roce_tx_dma_tuple_counter),
-    .roce_tx_local_tuple_counter        (roce_tx_local_tuple_counter),
-    .axis_stream_down                   (axis_stream_down),
-
-    //tlb
-    .tlb_miss_counter                   (tlb_miss_counter),
-    .tlb_boundary_crossing_counter      (tlb_boundary_crossing_counter),
-    //same clock
-    .dma_write_cmd_counter              (dma_write_cmd_counter),
-    .dma_write_word_counter             (dma_write_word_counter),
-    .dma_write_pkg_counter              (dma_write_pkg_counter),
-    .dma_read_cmd_counter               (dma_read_cmd_counter),
-    .dma_read_word_counter              (dma_read_word_counter),
-    .dma_read_pkg_counter               (dma_read_pkg_counter),
-    //dma bench
-    .dma_bench_execution_cycles        (pcie_dma_bench_execution_cycles),
-
-
-    //length counters
-    .reset_dma_write_length_counter      (reset_dma_write_length_counter),
-    .dma_write_length_counter            (dma_write_length_counter),
-    .reset_dma_read_length_counter      (reset_dma_read_length_counter),
-    .dma_read_length_counter            (dma_read_length_counter),
-    .dma_reads_flushed                  (dma_reads_flushed),
-    
-    .set_ip_addr_valid(set_ip_addr_valid),
-    .set_ip_addr_data(set_ip_addr_data),
-    .set_board_number_valid(set_board_number_valid),
-    .set_board_number_data(set_board_number_data)
-);*/
-
-/*
- * DEBUG counters on pcie clk
- */
-/*reg[31:0] dma_write_cmd_counter;
-reg[31:0] dma_write_load_counter;
-reg[31:0] dma_write_word_counter;
-reg[31:0] dma_write_pkg_counter;
-wire reset_dma_write_length_counter;
-reg[47:0] dma_write_length_counter;
-
- reg[31:0] dma_read_cmd_counter;
-reg[31:0] dma_read_load_counter;
- reg[31:0] dma_read_word_counter;
- reg[31:0] dma_read_pkg_counter;
-wire reset_dma_read_length_counter;
-reg[47:0] dma_read_length_counter;
-reg dma_reads_flushed;
-reg invalid_read;
-
-reg[7:0] write_bypass_ready_counter;
-reg[31:0] dma_write_back_pressure_counter;
-
-
-always @(posedge pcie_clk)
-begin 
-    if (~pcie_aresetn) begin
-        dma_write_cmd_counter <= 0;
-        dma_write_load_counter <= 0;
-        dma_write_word_counter <= 0;
-        dma_write_pkg_counter <= 0;
-        dma_read_cmd_counter <= 0;
-        dma_read_word_counter <= 0;
-        dma_read_pkg_counter <= 0;
-        write_bypass_ready_counter <= 0;
-        dma_write_length_counter <= 0;
-        dma_read_length_counter <= 0;
-        dma_write_back_pressure_counter <= 0;
-        dma_reads_flushed <= 0;
-        invalid_read <= 0;
-    end
-    else begin
-        dma_reads_flushed <= (dma_read_cmd_counter == dma_read_pkg_counter);
-        //write
-        if (axis_dma_write_cmd_tvalid && axis_dma_write_cmd_tready) begin
-            dma_write_cmd_counter <= dma_write_cmd_counter + 1;
-            dma_write_length_counter <= dma_write_length_counter + axis_dma_write_cmd_tdata[95:64];
-        end
-        if (reset_dma_write_length_counter) begin
-            dma_write_length_counter <= 0;
-        end
-        if (axis_dma_write_dsc_byp_load) begin
-            dma_write_load_counter <= dma_write_load_counter + 1;
-        end
-        if (axis_dma_write_data_tvalid && axis_dma_write_data_tready) begin
-            dma_write_word_counter <= dma_write_word_counter + 1;
-            if (axis_dma_write_data_tlast) begin
-                dma_write_pkg_counter <= dma_write_pkg_counter + 1;
-            end
-        end
-        //read
-        if (axis_dma_read_cmd_tvalid && axis_dma_read_cmd_tready) begin
-            dma_read_cmd_counter <= dma_read_cmd_counter + 1;
-            dma_read_length_counter <= dma_read_length_counter + axis_dma_read_cmd_tdata[95:64];
-            if (axis_dma_read_cmd_tdata[95:64] == 0) begin
-                invalid_read <=  1;
-            end
-        end
-        if (reset_dma_read_length_counter) begin
-            dma_read_length_counter <= 0;
-        end
-        if (axis_dma_read_dsc_byp_load) begin
-            dma_read_load_counter <= dma_read_load_counter + 1;
-        end
-        if (axis_dma_read_data_tvalid && axis_dma_read_data_tready) begin
-            dma_read_word_counter <= dma_read_word_counter + 1;
-            if (axis_dma_read_data_tlast) begin
-                dma_read_pkg_counter <= dma_read_pkg_counter + 1;
-            end
-        end
-        if (axis_dma_write_cmd_tvalid && ~axis_dma_write_cmd_tready) begin
-            dma_write_back_pressure_counter <= dma_write_back_pressure_counter + 1;
-        end
-        
-        if (axis_dma_write_dsc_byp_ready) begin
-            write_bypass_ready_counter <= 0;
-        end
-        else begin
-            write_bypass_ready_counter <= write_bypass_ready_counter + 1;
-        end
-    end
-end*/
-
-
-
-//performance counter
-wire roce_received;
-wire roce_clear;
-`ifdef PERF_COUNTER
-reg ping_on;
-reg pong_on;
-reg read_ping_on;
-reg writecmd_on;
-reg dmaread_on;
-reg[11:0] perf_write_cmd_counter;
-reg[15:0] perf_ping_counter;
-reg[11:0] perf_pong_counter;
-reg[11:0] perf_dmaread_counter;
-reg[15:0] perf_read_ping_counter;
-always @(posedge pcie_clk)
-begin 
-    if (~pcie_aresetn) begin
-	ping_on <= 0;
-	pong_on <= 0;
-	read_ping_on <= 0;
-	dmaread_on <= 0;
-    writecmd_on <= 0;
-    perf_write_cmd_counter <= 0;
-	perf_ping_counter <= 0;
-	perf_pong_counter <= 0;
-	perf_dmaread_counter <= 0;
-	perf_read_ping_counter <= 0;
-    end
-    else begin
-        if (axis_pcie_tx_metadata_TVALID && axis_pcie_tx_metadata_TREADY) begin
-            if (axis_pcie_tx_metadata_TDATA[1:0] == 0) begin
-                read_ping_on <= 1;
-            end
-            else begin
-                writecmd_on <= 1;
-                if (dma_write_cmd_counter == 0) begin
-                            ping_on <= 1;
-                end
-                else begin
-                    pong_on <= 0;
-                end
-            end
-        end
-        if (axis_dma_write_data_tvalid && axis_dma_write_data_tready && axis_dma_write_data_tlast) begin
-            ping_on <= 0;
-            read_ping_on <= 0;
-            if (writecmd_on == 0) begin
-                pong_on <= 1;    
-            end
-        end
-        if (axis_dma_read_dsc_byp_load && axis_dma_read_dsc_byp_ready) begin
-            writecmd_on <= 0;
-            dmaread_on <= 1;
-        end
-        if (axis_dma_read_data_tvalid && axis_dma_read_data_tready) begin
-            dmaread_on <= 0;
-        end
-        if (writecmd_on) begin
-           perf_write_cmd_counter <= perf_write_cmd_counter + 1;
-        end
-        if (ping_on) begin
-           perf_ping_counter <= perf_ping_counter + 1;
-        end
-        if (pong_on) begin
-           perf_pong_counter <= perf_pong_counter + 1;
-        end
-        if (dmaread_on) begin
-    		perf_dmaread_counter <= perf_dmaread_counter + 1;
-        end
-        if (read_ping_on) begin
-            perf_read_ping_counter <= perf_read_ping_counter + 1;
-        end
-    end
-end
-
-//performance counters network path
-reg[11:0] txwrite_counter;
-reg[11:0] txread_counter;
-reg[11:0] rx_counter;
-reg[11:0] rxwrite_counter;
-reg[11:0] rxread_counter;
-reg txwrite_on;
-reg txread_on;
-reg rx_on;
-always @(posedge net_clk)
-begin 
-    if (~aresetn_counter) begin
-        txwrite_on <= 0;
-        txread_on <= 0;
-        rx_on <= 0;
-        txwrite_counter <= 0;
-        txread_counter <= 0;
-        rx_counter <= 0;
-        rxwrite_counter <= 0;
-        rxread_counter <= 0;
-    end
-    else begin
-        //txwrite
-        if (axis_dma_data_clk_to_split_tvalid && axis_dma_data_clk_to_split_tready) begin
-            txwrite_on <= 1;
-        end
-        if (axis_tx_metadata_TVALID & axis_tx_metadata_TREADY && axis_tx_metadata_TDATA[1:0] == 0) begin
-            txread_on <= 1;
-        end
-        if (AXI_M_Stream_TVALID & AXI_M_Stream_TREADY & AXI_M_Stream_TLAST) begin
-            txwrite_on <= 0;
-            txread_on <= 0;
-        end
-        //rx
-        if (roce_received) begin
-            rx_on <= 1;
-            //rx_counter <= 0;
-        end
-        if (rx_on) begin
-            rx_counter <= rx_counter + 1;
-        end
-        if (axis_merge_to_clk_tvalid && axis_merge_to_clk_tready && axis_merge_to_clk_tlast) begin
-            rx_on <= 0;
-            rxwrite_counter <= rx_counter;
-            rx_counter <= 0;
-        end
-        if (axis_roce_read_cmd_TVALID && axis_roce_read_cmd_TREADY) begin
-            rx_on <= 0;
-            if (rx_on) begin
-                    rxread_counter <= rx_counter;
-                    rx_counter <= 0;
-            end
-        end
-        if (roce_clear) begin
-            rx_on <= 0;
-            rx_counter <= 0;
-        end
-        //counters
-        if (txwrite_on) begin
-            txwrite_counter <= txwrite_counter + 1;
-        end
-        if (txread_on) begin
-            txread_counter <= txread_counter + 1;
-        end
-    end
-end
-`endif
-
-/*
- * DEBUG counters on axi clk
- */
-
-/*reg[15:0] rxpart_cmd_counter;
-reg[15:0] rxpart_mapping_counter;
-reg[31:0] rxpart_input_tuple_counter;
-//reg[31:0] rxpart_input_pkg_counter;
-reg[31:0] rxpart_output_tuple_counter;
-reg[31:0] rxpart_output_pkg_counter;
-
-reg[15:0]  txpart_cmd_counter;
-reg[15:0] txpart_mapping_counter;
-reg[31:0] txpart_input_tuple_counter;
-//reg[31:0] txpart_input_pkg_counter;
-
-reg[31:0] txpart_output_tuple_counter;
-reg[31:0] txpart_output_pkg_counter;
-reg[31:0] txpart_local_output_tuple_counter;
-reg[31:0] txpart_local_output_pkg_counter;
-
-reg[31:0] roce_write_cmd_counter;
-reg[31:0] roce_read_cmd_counter;
-reg[31:0] rxpart_write_cmd_counter;
-reg[31:0] txpart_write_cmd_counter;
-reg[31:0] txpart_read_cmd_counter;
-
-reg[31:0] roce_rx_tuple_counter;
-reg[31:0] roce_tx_dma_tuple_counter;
-reg[31:0] roce_tx_local_tuple_counter;
-
-reg[7:0]  axis_stream_down_counter;
-reg axis_stream_down;
-reg[7:0]  output_stream_down_counter;
-reg output_stream_down;
-
- //debug
- reg aresetn_counter;
-always @(posedge net_clk)
-begin
-    aresetn_counter <= net_aresetn;
-    if (~aresetn_counter) begin
-        rxpart_cmd_counter <= 0;
-        rxpart_mapping_counter <= 0;
-        rxpart_input_tuple_counter <= 0;
-        //rxpart_input_pkg_counter <= 0;
-        rxpart_output_tuple_counter <= 0;
-        rxpart_output_pkg_counter <= 0;
-         
-        txpart_cmd_counter <= 0;
-        txpart_mapping_counter <= 0;
-        txpart_input_tuple_counter <= 0;
-        //txpart_input_pkg_counter <= 0;
-        txpart_output_tuple_counter <= 0;
-        txpart_output_pkg_counter <= 0;
-        txpart_local_output_tuple_counter <= 0;
-        txpart_local_output_pkg_counter <= 0;
-
-        roce_write_cmd_counter <= 0;
-        roce_read_cmd_counter <= 0;
-        rxpart_write_cmd_counter <= 0;
-        txpart_write_cmd_counter <= 0;
-        txpart_read_cmd_counter <= 0;
-
-        roce_rx_tuple_counter <= 0;
-        roce_tx_dma_tuple_counter <= 0;
-        roce_tx_local_tuple_counter <= 0;
-
-        axis_stream_down_counter <= 0;
-        axis_stream_down <= 0;
-    end
-    else begin
-        //rxpart
-        if (axis_rxpart_cmd_valid && axis_rxpart_cmd_ready) begin
-            rxpart_cmd_counter <= rxpart_cmd_counter + 1;
-        end
-        if (axis_rxpart_mapping_valid && axis_rxpart_mapping_ready) begin
-            rxpart_mapping_counter <= rxpart_mapping_counter + 1;
-        end
-`ifdef LOCAL_PARTITIONING_OFFLOADED
-        if (axis_merge_to_rxpart_tvalid && axis_merge_to_rxpart_tready) begin
-            if (axis_merge_to_rxpart_tkeep[15]) begin
-                rxpart_input_tuple_counter <= rxpart_input_tuple_counter + 2;
-            end
-            else begin
-                rxpart_input_tuple_counter <= rxpart_input_tuple_counter + 1;
-            end
-        end
-        if (axis_rxpart_to_bound_check_data_tvalid && axis_rxpart_to_bound_check_data_tready) begin
-            if (axis_rxpart_to_bound_check_data_tkeep[63]) begin
-                rxpart_output_tuple_counter <= rxpart_output_tuple_counter + 8;
-            end
-            else if(axis_rxpart_to_bound_check_data_tkeep[55]) begin
-                rxpart_output_tuple_counter <= rxpart_output_tuple_counter + 7;
-            end
-            else if (axis_rxpart_to_bound_check_data_tkeep[47]) begin
-                rxpart_output_tuple_counter <= rxpart_output_tuple_counter + 6;
-            end
-            else if (axis_rxpart_to_bound_check_data_tkeep[39]) begin
-                rxpart_output_tuple_counter <= rxpart_output_tuple_counter + 5;
-            end
-            else if (axis_rxpart_to_bound_check_data_tkeep[31]) begin
-                rxpart_output_tuple_counter <= rxpart_output_tuple_counter + 4;
-            end
-            else if (axis_rxpart_to_bound_check_data_tkeep[23]) begin
-                rxpart_output_tuple_counter <= rxpart_output_tuple_counter + 3;
-            end
-            else if (axis_rxpart_to_bound_check_data_tkeep[15]) begin
-                rxpart_output_tuple_counter <= rxpart_output_tuple_counter + 2;
-            end
-            else begin
-                rxpart_output_tuple_counter <= rxpart_output_tuple_counter + 1;
-            end
-            if (axis_rxpart_to_bound_check_data_tlast) begin
-               rxpart_output_pkg_counter <= rxpart_output_pkg_counter + 1;
-            end
-        end
-`endif
-        //txpart
-        if (axis_txpart_cmd_valid && axis_txpart_cmd_ready) begin
-            txpart_cmd_counter <= txpart_cmd_counter + 1;
-        end
-        if (axis_txpart_mapping_valid && axis_txpart_mapping_ready) begin
-            txpart_mapping_counter <= txpart_mapping_counter + 1;
-        end
-        if (axis_dma_data_split_to_txpart_tvalid && axis_dma_data_split_to_txpart_tready) begin
-            if (axis_dma_data_split_to_txpart_tkeep[31]) begin
-                txpart_input_tuple_counter <= txpart_input_tuple_counter + 2;
-            end
-            else begin
-                txpart_input_tuple_counter <= txpart_input_tuple_counter + 1;
-            end
-        end
-        if (axis_txpart_data_tvalid && axis_txpart_data_tready) begin
-           txpart_output_tuple_counter <= txpart_output_tuple_counter + 1;
-           if (axis_txpart_data_tlast) begin
-               txpart_output_pkg_counter <= txpart_output_pkg_counter + 1;
-           end
-        end
-        if (axis_txpart_local_tvalid && axis_txpart_local_tready) begin
-           if (axis_txpart_local_tkeep[15]) begin
-                txpart_local_output_tuple_counter <= txpart_local_output_tuple_counter + 2;
-           end
-           else begin
-                txpart_local_output_tuple_counter <= txpart_local_output_tuple_counter + 1;
-           end
-           if (axis_txpart_local_tlast) begin
-               txpart_local_output_pkg_counter <= txpart_local_output_pkg_counter + 1;
-           end
-        end
-
-        //memory cmd 
-        if (axis_roce_write_cmd_TVALID && axis_roce_write_cmd_TREADY) begin
-            roce_write_cmd_counter <= roce_write_cmd_counter + 1;
-        end
-        if (axis_roce_read_cmd_TVALID && axis_roce_read_cmd_TREADY) begin
-            roce_read_cmd_counter <= roce_read_cmd_counter + 1;
-        end
-        if (axis_rxpart_write_cmd_TVALID && axis_rxpart_write_cmd_TREADY) begin
-            rxpart_write_cmd_counter <= rxpart_write_cmd_counter + 1;
-        end
-        if (axis_txpart_write_cmd_TVALID && axis_txpart_write_cmd_TREADY) begin
-            txpart_write_cmd_counter <= txpart_write_cmd_counter + 1;
-        end
-        if (axis_txpart_read_cmd_TVALID && axis_txpart_read_cmd_TREADY) begin
-            txpart_read_cmd_counter <= txpart_read_cmd_counter + 1;
-        end
-
-        if (AXI_S_Stream_TREADY) begin
-            axis_stream_down_counter <= 0;
-        end
-        if (AXI_S_Stream_TVALID && ~AXI_S_Stream_TREADY) begin
-            axis_stream_down_counter <= axis_stream_down_counter + 1;
-        end
-        if (axis_stream_down_counter > 2) begin
-            axis_stream_down <= 1;
-        end
-        if (axis_rxread_data_TREADY) begin
-            output_stream_down_counter <= 0;
-        end
-        if (axis_rxread_data_TVALID && ~axis_rxread_data_TREADY) begin
-            output_stream_down_counter <= output_stream_down_counter + 1;
-        end
-        if (output_stream_down_counter > 2) begin
-            output_stream_down <= 1;
-        end
-        
-        //roce rx & tx
-        if (axis_rxwrite_data_TVALID && axis_rxwrite_data_TREADY) begin
-            roce_rx_tuple_counter <= roce_rx_tuple_counter + 1;
-        end
-        if (axis_rxread_data_TVALID && axis_rxread_data_TREADY) begin
-            roce_tx_dma_tuple_counter <= roce_tx_dma_tuple_counter + 1;
-        end
-        if (axis_tx_data_tvalid && axis_tx_data_tready) begin
-            roce_tx_local_tuple_counter <= roce_tx_local_tuple_counter + 1;
-        end
-    end
-end*/
-
-
-/*
- * DEBUG for TLB
- */
-
-/*reg[15:0] tlb_read_input;
-reg[15:0] tlb_write_input;
-reg[15:0] tlb_read_output;
-reg[15:0] tlb_write_output;
-
-always @(posedge net_clk)
-begin 
-    if (~aresetn) begin
-        tlb_read_input <= 0;
-        tlb_write_input <= 0;
-        tlb_read_output <= 0;
-        tlb_write_output <= 0;
-    end
-    else begin
-        if (axis_dma_read_cmd_tvalid && axis_dma_read_cmd_tready) begin
-            tlb_read_input <= tlb_read_input  + 1;
-        end
-        if (axis_dma_write_cmd_tvalid && axis_dma_write_cmd_tready) begin
-            tlb_write_input <= tlb_write_input + 1;
-        end
-        if (axis_dma_read_cmd_to_clk_tvalid && axis_dma_read_cmd_to_clk_tready) begin
-            tlb_read_output <= tlb_read_output + 1;
-        end
-        if (axis_dma_write_cmd_to_clk_tvalid && axis_dma_write_cmd_to_clk_tready) begin
-            tlb_write_output <= tlb_write_output + 1;
-        end
-    end
-end*/
-
-
-
- `ifdef USE_DDR //and USE_DDR
-
-reg[17:0] rxwritebuf_cmd_counter;
-reg[17:0] rxwritebuf_word_counter;
-reg[17:0] rxwritebuf_sts_counter;
-reg[7:0] rxreadbuf_cmd_counter;
-reg[23:0] rxreadbuf_read_length_counter;
-reg[23:0] rxreadbuf_write_length_counter;
-reg[15:0] rxreadbuf_word_counter;
-reg[15:0] rxreadbuf_pkg_counter;
-
-reg[7:0] txreadbuf_cmd_counter;
-
-always @(posedge net_clk)
-begin
-    if (~net_aresetn) begin
-        rxwritebuf_cmd_counter <= 0;
-        rxwritebuf_word_counter <= 0;
-        rxwritebuf_sts_counter <= 0;
-        rxreadbuf_cmd_counter <= 0;
-        rxreadbuf_read_length_counter <= 0;
-        rxreadbuf_write_length_counter <= 0;
-        rxreadbuf_word_counter <= 0;
-        rxreadbuf_pkg_counter <= 0;
-        
-        txreadbuf_cmd_counter <= 0;
-        
-    end
-    else begin
-        /*if (axis_rxpart_writebuf_cmd_tvalid && axis_rxpart_writebuf_cmd_tready)  begin
-            rxwritebuf_cmd_counter <= rxwritebuf_cmd_counter + 1;
-            rxreadbuf_write_length_counter <= rxreadbuf_write_length_counter + axis_rxpart_writebuf_cmd_tdata[15:0];
-        end
-        if (axis_rxpart_writebuf_data_tvalid && axis_rxpart_writebuf_data_tready) begin
-            rxwritebuf_word_counter <= rxwritebuf_word_counter + 1;
-        end
-        if (axis_rxpart_writebuf_status_tvalid && axis_rxpart_writebuf_status_tready) begin
-            rxwritebuf_sts_counter <= rxwritebuf_sts_counter + 1;
-        end
-        if (axis_rxpart_readbuf_cmd_tvalid && axis_rxpart_readbuf_cmd_tready) begin
-            read_started <= 1;
-            rxreadbuf_cmd_counter <= rxreadbuf_cmd_counter + 1;
-            rxreadbuf_read_length_counter <= rxreadbuf_read_length_counter + axis_rxpart_readbuf_cmd_tdata[15:0];
-       end
-       if (axis_rxpart_readbuf_data_tvalid && axis_rxpart_readbuf_data_tready) begin
-        if (axis_rxpart_readbuf_data_tkeep[31]) begin
-            rxreadbuf_word_counter <= rxreadbuf_word_counter + 4;
-        end
-        else if (axis_rxpart_readbuf_data_tkeep[23]) begin
-            rxreadbuf_word_counter <= rxreadbuf_word_counter + 3;
-        end
-        else if (axis_rxpart_readbuf_data_tkeep[15]) begin
-            rxreadbuf_word_counter <= rxreadbuf_word_counter + 2;
-        end
-        else begin
-            rxreadbuf_word_counter <= rxreadbuf_word_counter + 1;
-        end
-        
-        if (axis_rxpart_readbuf_data_tlast) begin
-            rxreadbuf_pkg_counter <= rxreadbuf_pkg_counter + 1;
-        end
-            //CHECK integrity
-            //partitionIdValid <= 1'b1;
-            //currPartitionId <= ((axis_rxpart_readbuf_data_tdata[63:0] & ((16-1) << (1+31))) >> 32);
-       end
-       if (axis_txpart_readbuf_cmd_tvalid && axis_txpart_readbuf_cmd_tready) begin
-        txreadbuf_cmd_counter <= txreadbuf_cmd_counter + 1;
-       end*/
-    end
-end
-
-
-`endif
-
-reg[7:0] bench_write_cmd_counter;
-reg[15:0] bench_write_data_word_counter;
-reg[7:0] bench_write_data_pkg_counter;
-reg[15:0] bench_read_cmd_counter;
-reg[15:0] bench_read_data_word_counter;
-reg[7:0] bench_read_data_pkg_counter;
-
-/* DEBUG boundary_check */
-/*always @(posedge net_clk)
-begin
-    if (~net_aresetn) begin
-        bench_write_cmd_counter <= 0;
-        bench_write_data_word_counter <= 0;
-        bench_write_data_pkg_counter <= 0;
-        bench_read_cmd_counter <= 0;
-        bench_read_data_word_counter <= 0;
-        bench_read_data_pkg_counter <= 0;
-    end
-    else begin
-        if (axis_bench_write_cmd_tvalid && axis_bench_write_cmd_tready) begin
-            bench_write_cmd_counter <= bench_write_cmd_counter + 1;
-        end
-        if (axis_bench_write_data_tvalid && axis_bench_write_data_tready) begin
-            bench_write_data_word_counter <= bench_write_data_word_counter + 1;
-            if (axis_bench_write_data_tlast) begin
-                bench_write_data_pkg_counter <= bench_write_data_pkg_counter + 1;
-            end
-        end
-        if (axis_bench_read_cmd_tvalid && axis_bench_read_cmd_tready) begin
-            bench_read_cmd_counter <= bench_read_cmd_counter + 1;
-        end
-        if (axis_bench_read_data_tvalid && axis_bench_read_data_tready) begin
-            bench_read_data_word_counter <= bench_read_data_word_counter + 1;
-            if (axis_bench_read_data_tlast) begin
-                bench_read_data_pkg_counter <= bench_read_data_pkg_counter + 1;
-            end
-        end
-    end
- end*/
 
 
 endmodule
