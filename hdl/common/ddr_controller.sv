@@ -136,7 +136,7 @@ reg   [1:0]  axil_rresp;
 reg          axil_rvalid;
 wire         axil_rready;
 
-axi_lite_clock_converter axi_lite_clock_converter (
+axil_clock_converter axil_clock_converter (
   .s_axi_aclk(pcie_clk),                    // input wire aclk
   .s_axi_aresetn(pcie_aresetn),              // input wire aresetn
   .s_axi_awaddr(s_axil_awaddr),    // input wire [31 : 0] s_axi_awaddr

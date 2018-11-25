@@ -27,6 +27,8 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
+`define USE_DDR
+
 module dma_example_top
 (
     input  wire [1-1:0] gt_rxp_in,
@@ -70,10 +72,10 @@ module dma_example_top
     output wire[0:0]                 c0_ddr4_ck_t,
     output wire[0:0]                c0_ddr4_ck_c,
     output wire                 c0_ddr4_reset_n,
-    inout  wire[9:0]            c0_ddr4_dm_dbi_n,
-    inout  wire[79:0]            c0_ddr4_dq,
-    inout  wire[9:0]            c0_ddr4_dqs_t,
-    inout  wire[9:0]            c0_ddr4_dqs_c,
+    inout  wire[8:0]            c0_ddr4_dm_dbi_n, //9:0 with native interface
+    inout  wire[71:0]            c0_ddr4_dq, //79:0 with native interface
+    inout  wire[8:0]            c0_ddr4_dqs_t, //9:0 with native interface
+    inout  wire[8:0]            c0_ddr4_dqs_c, //9:0 with native interface
     
     //DDR1
     input wire                   c1_sys_clk_p,
@@ -88,10 +90,10 @@ module dma_example_top
     output wire[0:0]                 c1_ddr4_ck_t,
     output wire[0:0]                c1_ddr4_ck_c,
     output wire                 c1_ddr4_reset_n,
-    inout  wire[9:0]            c1_ddr4_dm_dbi_n,
-    inout  wire[79:0]            c1_ddr4_dq,
-    inout  wire[9:0]            c1_ddr4_dqs_t,
-    inout  wire[9:0]            c1_ddr4_dqs_c,
+    inout  wire[8:0]            c1_ddr4_dm_dbi_n, //9:0 with native interface
+    inout  wire[71:0]            c1_ddr4_dq, //79:0 with native interface
+    inout  wire[8:0]            c1_ddr4_dqs_t, //9:0 with native interface
+    inout  wire[8:0]            c1_ddr4_dqs_c, //9:0 with native interface
 `endif
     
     //buttons
@@ -106,8 +108,8 @@ module dma_example_top
 );
 
 wire sys_reset_n;
-wire aclk;
-wire aresetn;
+wire net_clk;
+wire net_aresetn;
 wire network_init;
 
 wire [2:0] gt_loopback_in_0; 
@@ -141,7 +143,7 @@ wire gtpowergood_out;
 
 BUFG bufg_aresetn(
    .I(network_init),
-   .O(aresetn)
+   .O(net_aresetn)
 );
 
 
@@ -200,9 +202,9 @@ assign axis_net_tx_data_tvalid = 1'b0;
 network_module network_module_inst
 (
     .dclk (dclk),
-    .net_clk(aclk),
+    .net_clk(net_clk),
     .sys_reset (sys_reset),
-    .aresetn(aresetn),
+    .aresetn(net_aresetn),
     .network_init_done(network_init),
     
     .gt_refclk_p(gt_refclk_p),
@@ -288,8 +290,8 @@ network_module network_module_inst
    .s_axis_tready(),    // output wire s_axis_tready
    .s_axis_tdata(set_ip_addr_data),
    
-   .m_axis_aclk(aclk),        // input wire m_axis_aclk
-   .m_axis_aresetn(aresetn),  // input wire m_axis_aresetn
+   .m_axis_aclk(anet_clk),        // input wire m_axis_aclk
+   .m_axis_aresetn(anet_resetn),  // input wire m_axis_aresetn
    .m_axis_tvalid(net_ip_address_valid),    // output wire m_axis_tvalid
    .m_axis_tready(1'b1),    // input wire m_axis_tready
    .m_axis_tdata(net_ip_address_data)      // output wire [159 : 0] m_axis_tdata
@@ -321,8 +323,8 @@ wire net_board_number_valid;
 wire[3:0] net_board_number_data;
 reg[3:0] board_number;
 
-always @(posedge aclk) begin
-    if (~aresetn) begin
+always @(posedge anet_clk) begin
+    if (~net_aresetn) begin
         local_ip_address <= 32'hD1D4010B;
         board_number <= 0;
     end
@@ -366,7 +368,7 @@ reg     [LED_CTR_WIDTH-1:0]           l1_ctr;
 reg     [LED_CTR_WIDTH-1:0]           l2_ctr;
 reg     [LED_CTR_WIDTH-1:0]           l3_ctr;
 
-always @(posedge aclk)
+always @(posedge net_clk)
 begin
     l0_ctr <= l0_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
 end
@@ -390,7 +392,7 @@ end
 assign led[1] = pcie_lnk_up;*/
 assign led[2] = l0_ctr[LED_CTR_WIDTH-1];
 assign led[3] = l3_ctr[LED_CTR_WIDTH-1];
-assign led[4] = perst_n & aresetn;
+assign led[4] = perst_n & net_aresetn;
 ///assign led[5] = aresetn;
 
    
@@ -1139,155 +1141,151 @@ mem_single_inf  mem_inf_inst1(
 );
 
 
-mem_driver  mem_driver_inst(
-//.clk156_25(net_clk),
-//.reset233_n(reset233_n), //active low reset signal for 233MHz clock domain
-//.reset156_25_n(ddr3_calib_complete),
-//.reset156_25_n(ddr3_calib_complete),
-//.clk233(clk233),
-//.clk200(clk_ref_200),
-.sys_rst(perst_n & pok_dram),
+mem_driver  mem_driver0_inst(
 
 /* I/O INTERFACE */
-// differential iodelayctrl clk (reference clock)
-.clk_ref_p(clk_ref_p),
-.clk_ref_n(clk_ref_n),
-//SODIMM 0
-// Inouts
-.c0_ddr3_dq(c0_ddr3_dq),
-.c0_ddr3_dqs_n(c0_ddr3_dqs_n),
-.c0_ddr3_dqs_p(c0_ddr3_dqs_p),
-// Outputs
-.c0_ddr3_addr(c0_ddr3_addr),
-.c0_ddr3_ba(c0_ddr3_ba),
-.c0_ddr3_ras_n(c0_ddr3_ras_n),
-.c0_ddr3_cas_n(c0_ddr3_cas_n),
-.c0_ddr3_we_n(c0_ddr3_we_n),
-.c0_ddr3_reset_n(c0_ddr3_reset_n),
-.c0_ddr3_ck_p(c0_ddr3_ck_p),
-.c0_ddr3_ck_n(c0_ddr3_ck_n),
-.c0_ddr3_cke(c0_ddr3_cke),
-.c0_ddr3_cs_n(c0_ddr3_cs_n),
-//.c0_ddr3_dm(c0_ddr3_dm),
-.c0_ddr3_odt(c0_ddr3_odt),
-//.c0_ui_clk(c0_ui_clk),
-.c0_init_calib_complete(c0_init_calib_complete),
-  // Differential system clocks
+// Differential system clocks
 .c0_sys_clk_p(c0_sys_clk_p),
 .c0_sys_clk_n(c0_sys_clk_n),
+.sys_rst(sys_reset),
 
-//SODIMM 1
-// Inouts
-.c1_ddr3_dq(c1_ddr3_dq),
-.c1_ddr3_dqs_n(c1_ddr3_dqs_n),
-.c1_ddr3_dqs_p(c1_ddr3_dqs_p),
-// Outputs
-.c1_ddr3_addr(c1_ddr3_addr),
-.c1_ddr3_ba(c1_ddr3_ba),
-.c1_ddr3_ras_n(c1_ddr3_ras_n),
-.c1_ddr3_cas_n(c1_ddr3_cas_n),
-.c1_ddr3_we_n(c1_ddr3_we_n),
-.c1_ddr3_reset_n(c1_ddr3_reset_n),
-.c1_ddr3_ck_p(c1_ddr3_ck_p),
-.c1_ddr3_ck_n(c1_ddr3_ck_n),
-.c1_ddr3_cke(c1_ddr3_cke),
-.c1_ddr3_cs_n(c1_ddr3_cs_n),
-//.c1_ddr3_dm(c1_ddr3_dm),
-.c1_ddr3_odt(c1_ddr3_odt),
-//.c1_ui_clk(c1_ui_clk),
-.c1_init_calib_complete(c1_init_calib_complete),
-  // Differential system clocks
-.c1_sys_clk_p(c1_sys_clk_p),
-.c1_sys_clk_n(c1_sys_clk_n),
+//ddr4 pins
+.c0_ddr4_adr(c0_ddr4_adr),                                // output wire [16 : 0] c0_ddr4_adr
+.c0_ddr4_ba(c0_ddr4_ba),                                  // output wire [1 : 0] c0_ddr4_ba
+.c0_ddr4_cke(c0_ddr4_cke),                                // output wire [0 : 0] c0_ddr4_cke
+.c0_ddr4_cs_n(c0_ddr4_cs_n),                              // output wire [0 : 0] c0_ddr4_cs_n
+.c0_ddr4_dm_dbi_n(c0_ddr4_dm_dbi_n),                      // inout wire [8 : 0] c0_ddr4_dm_dbi_n
+.c0_ddr4_dq(c0_ddr4_dq),                                  // inout wire [71 : 0] c0_ddr4_dq
+.c0_ddr4_dqs_c(c0_ddr4_dqs_c),                            // inout wire [8 : 0] c0_ddr4_dqs_c
+.c0_ddr4_dqs_t(c0_ddr4_dqs_t),                            // inout wire [8 : 0] c0_ddr4_dqs_t
+.c0_ddr4_odt(c0_ddr4_odt),                                // output wire [0 : 0] c0_ddr4_odt
+.c0_ddr4_bg(c0_ddr4_bg),                                  // output wire [0 : 0] c0_ddr4_bg
+.c0_ddr4_reset_n(c0_ddr4_reset_n),                        // output wire c0_ddr4_reset_n
+.c0_ddr4_act_n(c0_ddr4_act_n),                            // output wire c0_ddr4_act_n
+.c0_ddr4_ck_c(c0_ddr4_ck_c),                              // output wire [0 : 0] c0_ddr4_ck_c
+.c0_ddr4_ck_t(c0_ddr4_ck_t),                              // output wire [0 : 0] c0_ddr4_ck_t
+
+//.c0_ui_clk(c0_ui_clk),
+.c0_init_calib_complete(c0_init_calib_complete),
 
 
 /* OS INTERFACE */
-.mem0_clk(mem0_clk),
-.mem0_aresetn(mem0_aresetn),
+.mem_clk(mem0_clk),
+.mem_aresetn(mem0_aresetn),
 
-.s0_axi_awid(c0_s_axi_awid),
-.s0_axi_awaddr(c0_s_axi_awaddr),
-.s0_axi_awlen(c0_s_axi_awlen),
-.s0_axi_awsize(c0_s_axi_awsize),
-.s0_axi_awburst(c0_s_axi_awburst),
-.s0_axi_awlock(c0_s_axi_awlock),
-.s0_axi_awcache(c0_s_axi_awcache),
-.s0_axi_awprot(c0_s_axi_awprot),
-.s0_axi_awvalid(c0_s_axi_awvalid),
-.s0_axi_awready(c0_s_axi_awready),
+.s_axi_awid(c0_s_axi_awid),
+.s_axi_awaddr(c0_s_axi_awaddr),
+.s_axi_awlen(c0_s_axi_awlen),
+.s_axi_awsize(c0_s_axi_awsize),
+.s_axi_awburst(c0_s_axi_awburst),
+.s_axi_awlock(c0_s_axi_awlock),
+.s_axi_awcache(c0_s_axi_awcache),
+.s_axi_awprot(c0_s_axi_awprot),
+.s_axi_awvalid(c0_s_axi_awvalid),
+.s_axi_awready(c0_s_axi_awready),
 
-.s0_axi_wdata(c0_s_axi_wdata),
-.s0_axi_wstrb(c0_s_axi_wstrb),
-.s0_axi_wlast(c0_s_axi_wlast),
-.s0_axi_wvalid(c0_s_axi_wvalid),
-.s0_axi_wready(c0_s_axi_wready),
+.s_axi_wdata(c0_s_axi_wdata),
+.s_axi_wstrb(c0_s_axi_wstrb),
+.s_axi_wlast(c0_s_axi_wlast),
+.s_axi_wvalid(c0_s_axi_wvalid),
+.s_axi_wready(c0_s_axi_wready),
 
-.s0_axi_bready(c0_s_axi_bready),
-.s0_axi_bid(c0_s_axi_bid),
-.s0_axi_bresp(c0_s_axi_bresp),
-.s0_axi_bvalid(c0_s_axi_bvalid),
+.s_axi_bready(c0_s_axi_bready),
+.s_axi_bid(c0_s_axi_bid),
+.s_axi_bresp(c0_s_axi_bresp),
+.s_axi_bvalid(c0_s_axi_bvalid),
 
-.s0_axi_arid(c0_s_axi_arid),
-.s0_axi_araddr(c0_s_axi_araddr),
-.s0_axi_arlen(c0_s_axi_arlen),
-.s0_axi_arsize(c0_s_axi_arsize),
-.s0_axi_arburst(c0_s_axi_arburst),
-.s0_axi_arlock(c0_s_axi_arlock),
-.s0_axi_arcache(c0_s_axi_arcache),
-.s0_axi_arprot(c0_s_axi_arprot),
-.s0_axi_arvalid(c0_s_axi_arvalid),
-.s0_axi_arready(c0_s_axi_arready),
+.s_axi_arid(c0_s_axi_arid),
+.s_axi_araddr(c0_s_axi_araddr),
+.s_axi_arlen(c0_s_axi_arlen),
+.s_axi_arsize(c0_s_axi_arsize),
+.s_axi_arburst(c0_s_axi_arburst),
+.s_axi_arlock(c0_s_axi_arlock),
+.s_axi_arcache(c0_s_axi_arcache),
+.s_axi_arprot(c0_s_axi_arprot),
+.s_axi_arvalid(c0_s_axi_arvalid),
+.s_axi_arready(c0_s_axi_arready),
 
-.s0_axi_rready(c0_s_axi_rready),
-.s0_axi_rid(c0_s_axi_rid),
-.s0_axi_rdata(c0_s_axi_rdata),
-.s0_axi_rresp(c0_s_axi_rresp),
-.s0_axi_rlast(c0_s_axi_rlast),
-.s0_axi_rvalid(c0_s_axi_rvalid),
+.s_axi_rready(c0_s_axi_rready),
+.s_axi_rid(c0_s_axi_rid),
+.s_axi_rdata(c0_s_axi_rdata),
+.s_axi_rresp(c0_s_axi_rresp),
+.s_axi_rlast(c0_s_axi_rlast),
+.s_axi_rvalid(c0_s_axi_rvalid)
 
-.mem1_clk(mem1_clk),
-.mem1_aresetn(mem1_aresetn),
+);
 
-.s1_axi_awid(c1_s_axi_awid),
-.s1_axi_awaddr(c1_s_axi_awaddr),
-.s1_axi_awlen(c1_s_axi_awlen),
-.s1_axi_awsize(c1_s_axi_awsize),
-.s1_axi_awburst(c1_s_axi_awburst),
-.s1_axi_awlock(c1_s_axi_awlock),
-.s1_axi_awcache(c1_s_axi_awcache),
-.s1_axi_awprot(c1_s_axi_awprot),
-.s1_axi_awvalid(c1_s_axi_awvalid),
-.s1_axi_awready(c1_s_axi_awready),
+mem_driver  mem_driver1_inst(
 
-.s1_axi_wdata(c1_s_axi_wdata),
-.s1_axi_wstrb(c1_s_axi_wstrb),
-.s1_axi_wlast(c1_s_axi_wlast),
-.s1_axi_wvalid(c1_s_axi_wvalid),
-.s1_axi_wready(c1_s_axi_wready),
+/* I/O INTERFACE */
+// Differential system clocks
+.c0_sys_clk_p(c1_sys_clk_p),
+.c0_sys_clk_n(c1_sys_clk_n),
+.sys_rst(sys_reset),
 
-.s1_axi_bready(c1_s_axi_bready),
-.s1_axi_bid(c1_s_axi_bid),
-.s1_axi_bresp(c1_s_axi_bresp),
-.s1_axi_bvalid(c1_s_axi_bvalid),
+//ddr4 pins
+.c0_ddr4_adr(c1_ddr4_adr),                                // output wire [16 : 0] c0_ddr4_adr
+.c0_ddr4_ba(c1_ddr4_ba),                                  // output wire [1 : 0] c0_ddr4_ba
+.c0_ddr4_cke(c1_ddr4_cke),                                // output wire [0 : 0] c0_ddr4_cke
+.c0_ddr4_cs_n(c1_ddr4_cs_n),                              // output wire [0 : 0] c0_ddr4_cs_n
+.c0_ddr4_dm_dbi_n(c1_ddr4_dm_dbi_n),                      // inout wire [8 : 0] c0_ddr4_dm_dbi_n
+.c0_ddr4_dq(c1_ddr4_dq),                                  // inout wire [71 : 0] c0_ddr4_dq
+.c0_ddr4_dqs_c(c1_ddr4_dqs_c),                            // inout wire [8 : 0] c0_ddr4_dqs_c
+.c0_ddr4_dqs_t(c1_ddr4_dqs_t),                            // inout wire [8 : 0] c0_ddr4_dqs_t
+.c0_ddr4_odt(c1_ddr4_odt),                                // output wire [0 : 0] c0_ddr4_odt
+.c0_ddr4_bg(c1_ddr4_bg),                                  // output wire [0 : 0] c0_ddr4_bg
+.c0_ddr4_reset_n(c1_ddr4_reset_n),                        // output wire c0_ddr4_reset_n
+.c0_ddr4_act_n(c1_ddr4_act_n),                            // output wire c0_ddr4_act_n
+.c0_ddr4_ck_c(c1_ddr4_ck_c),                              // output wire [0 : 0] c0_ddr4_ck_c
+.c0_ddr4_ck_t(c1_ddr4_ck_t),                              // output wire [0 : 0] c0_ddr4_ck_t
 
-.s1_axi_arid(c1_s_axi_arid),
-.s1_axi_araddr(c1_s_axi_araddr),
-.s1_axi_arlen(c1_s_axi_arlen),
-.s1_axi_arsize(c1_s_axi_arsize),
-.s1_axi_arburst(c1_s_axi_arburst),
-.s1_axi_arlock(c1_s_axi_arlock),
-.s1_axi_arcache(c1_s_axi_arcache),
-.s1_axi_arprot(c1_s_axi_arprot),
-.s1_axi_arvalid(c1_s_axi_arvalid),
-.s1_axi_arready(c1_s_axi_arready),
+//.c0_ui_clk(c1_ui_clk),
+.c0_init_calib_complete(c1_init_calib_complete),
 
-.s1_axi_rready(c1_s_axi_rready),
-.s1_axi_rid(c1_s_axi_rid),
-.s1_axi_rdata(c1_s_axi_rdata),
-.s1_axi_rresp(c1_s_axi_rresp),
-.s1_axi_rlast(c1_s_axi_rlast),
-.s1_axi_rvalid(c1_s_axi_rvalid)
 
+/* OS INTERFACE */
+.mem_clk(mem1_clk),
+.mem_aresetn(mem1_aresetn),
+
+.s_axi_awid(c1_s_axi_awid),
+.s_axi_awaddr(c1_s_axi_awaddr),
+.s_axi_awlen(c1_s_axi_awlen),
+.s_axi_awsize(c1_s_axi_awsize),
+.s_axi_awburst(c1_s_axi_awburst),
+.s_axi_awlock(c1_s_axi_awlock),
+.s_axi_awcache(c1_s_axi_awcache),
+.s_axi_awprot(c1_s_axi_awprot),
+.s_axi_awvalid(c1_s_axi_awvalid),
+.s_axi_awready(c1_s_axi_awready),
+
+.s_axi_wdata(c1_s_axi_wdata),
+.s_axi_wstrb(c1_s_axi_wstrb),
+.s_axi_wlast(c1_s_axi_wlast),
+.s_axi_wvalid(c1_s_axi_wvalid),
+.s_axi_wready(c1_s_axi_wready),
+
+.s_axi_bready(c1_s_axi_bready),
+.s_axi_bid(c1_s_axi_bid),
+.s_axi_bresp(c1_s_axi_bresp),
+.s_axi_bvalid(c1_s_axi_bvalid),
+
+.s_axi_arid(c1_s_axi_arid),
+.s_axi_araddr(c1_s_axi_araddr),
+.s_axi_arlen(c1_s_axi_arlen),
+.s_axi_arsize(c1_s_axi_arsize),
+.s_axi_arburst(c1_s_axi_arburst),
+.s_axi_arlock(c1_s_axi_arlock),
+.s_axi_arcache(c1_s_axi_arcache),
+.s_axi_arprot(c1_s_axi_arprot),
+.s_axi_arvalid(c1_s_axi_arvalid),
+.s_axi_arready(c1_s_axi_arready),
+
+.s_axi_rready(c1_s_axi_rready),
+.s_axi_rid(c1_s_axi_rid),
+.s_axi_rdata(c1_s_axi_rdata),
+.s_axi_rresp(c1_s_axi_rresp),
+.s_axi_rlast(c1_s_axi_rlast),
+.s_axi_rvalid(c1_s_axi_rvalid)
 
 );
 
@@ -1605,6 +1603,7 @@ wire[7:0] h2c_sts_0;
 
 dma_driver dma_driver_inst (
   .sys_clk(pcie_ref_clk),                                              // input wire sys_clk
+  .sys_clk_gt(pcie_ref_clk_gt),
   .sys_rst_n(perst_n),                                          // input wire sys_rst_n
   .user_lnk_up(pcie_lnk_up),                                      // output wire user_lnk_up
   .pcie_tx_p(pcie_tx_p),                                      // output wire [7 : 0] pci_exp_txp
