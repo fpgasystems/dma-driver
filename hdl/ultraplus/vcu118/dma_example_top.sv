@@ -107,15 +107,21 @@ module dma_example_top
     output wire [7:0]       led
 );
 
-wire sys_reset_n;
+(* mark_debug = "true" *)wire sys_reset_n;
 wire net_clk;
-wire net_aresetn;
-wire network_init;
+(* mark_debug = "true" *)wire net_aresetn;
+(* mark_debug = "true" *)wire network_init;
 
-wire [2:0] gt_loopback_in_0; 
-wire[3:0] user_rx_reset;
-wire[3:0] user_tx_reset;
-wire gtpowergood_out;
+(* mark_debug = "true" *)wire [2:0] gt_loopback_in_0; 
+(* mark_debug = "true" *)wire[3:0] user_rx_reset;
+(* mark_debug = "true" *)wire[3:0] user_tx_reset;
+(* mark_debug = "true" *)wire gtpowergood_out;
+
+(* mark_debug = "true" *) wire sys_reset_debug;
+assign sys_reset_debug = sys_reset;
+
+wire user_clk;
+wire user_aresetn;
 
 //// For other GT loopback options please change the value appropriately
 //// For example, for internal loopback gt_loopback_in[2:0] = 3'b010;
@@ -152,7 +158,7 @@ assign led[0] = gtpowergood_out;
 assign led[1] = network_init;
 
 // PCIe signals
-wire pcie_lnk_up;
+(* mark_debug = "true" *)wire pcie_lnk_up;
 wire pcie_ref_clk;
 wire pcie_ref_clk_gt;
 
@@ -347,15 +353,16 @@ wire c1_init_calib_complete;
 
 // PCIe usser clock & reset
 wire pcie_clk;
-wire pcie_aresetn;
+(* mark_debug = "true" *)wire pcie_aresetn;
 
 
-wire c0_ui_clk;
-wire ddr3_calib_complete, init_calib_complete;
-wire toeTX_compare_error, ht_compare_error, upd_compare_error;
+//wire c0_ui_clk;
+(* mark_debug = "true" *)wire ddr3_calib_complete; //TODO rename
+(* mark_debug = "true" *)wire init_calib_complete;
+//wire toeTX_compare_error, ht_compare_error, upd_compare_error;
 
-reg rst_n_r1, rst_n_r2, rst_n_r3;
-reg reset156_25_n_r1, reset156_25_n_r2, reset156_25_n_r3;
+//reg rst_n_r1, rst_n_r2, rst_n_r3;
+//reg reset156_25_n_r1, reset156_25_n_r2, reset156_25_n_r3;
 
 //registers for crossing clock domains (from 233MHz to 156.25MHz)
 reg c0_init_calib_complete_r1, c0_init_calib_complete_r2;
@@ -373,10 +380,12 @@ begin
     l0_ctr <= l0_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
 end
 
-always @(posedge c0_ui_clk)
+`ifdef USE_DDR
+always @(posedge mem0_clk)
 begin
     l1_ctr <= l1_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
 end
+`endif
 /*always @(posedge clk_ref_200)
 begin
     l2_ctr <= l2_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
@@ -393,17 +402,17 @@ assign led[1] = pcie_lnk_up;*/
 assign led[2] = l0_ctr[LED_CTR_WIDTH-1];
 assign led[3] = l3_ctr[LED_CTR_WIDTH-1];
 assign led[4] = perst_n & net_aresetn;
-///assign led[5] = aresetn;
+assign led[5] = l1_ctr[LED_CTR_WIDTH-1];
 
    
-/*   always @(posedge aclk) begin
+   /*always @(posedge aclk) begin
         reset156_25_n_r1 <= perst_n & pok_dram & network_init;
         reset156_25_n_r2 <= reset156_25_n_r1;
         aresetn <= reset156_25_n_r2;
-   end
+   end*/
   
-always @(posedge aclk) 
-    if (~aresetn) begin
+always @(posedge user_clk) //TODO change to user_clk 
+    if (~user_aresetn) begin
         c0_init_calib_complete_r1 <= 1'b0;
         c0_init_calib_complete_r2 <= 1'b0;
         c1_init_calib_complete_r1 <= 1'b0;
@@ -417,7 +426,7 @@ always @(posedge aclk)
     end
 
 assign ddr3_calib_complete = c0_init_calib_complete_r2 & c1_init_calib_complete_r2;
-assign init_calib_complete = ddr3_calib_complete;*/
+assign init_calib_complete = ddr3_calib_complete;
 
 
 
@@ -436,7 +445,7 @@ localparam AxilPortDMA = 1;
 localparam AxilPortDDR0 = 2;
 localparam AxilPortDDR1 = 3;
 
-localparam NUM_AXIL_MODULES = 4;
+localparam NUM_AXIL_MODULES = 2;
 (* mark_debug = "true" *)wire [31: 0] axil_to_modules_awaddr    [NUM_AXIL_MODULES-1:0];
 (* mark_debug = "true" *)wire[NUM_AXIL_MODULES-1:0]  axil_to_modules_awvalid;
 (* mark_debug = "true" *)wire[NUM_AXIL_MODULES-1:0] axil_to_modules_awready;
@@ -467,10 +476,12 @@ wire [1:0] axil_to_modules_rresp    [NUM_AXIL_MODULES-1:0];
 benchmark_role user_role(
     .net_clk(net_clk),
     .net_aresetn(net_aresetn),
-
     .pcie_clk(pcie_clk),
     .pcie_aresetn(pcie_aresetn),
 
+    .user_clk(user_clk),
+    .user_aresetn(user_aresetn),
+    
     /* CONTROL INTERFACE */
     // LITE interface
     //-- AXI Master Write Address Channel
@@ -926,10 +937,12 @@ wire                                    c1_s_axi_rvalid;
 
 
 mem_single_inf  mem_inf_inst0(
-.user_clk(net_clk),
+.user_clk(user_clk),
 .user_aresetn(ddr3_calib_complete),
 .mem_clk(mem0_clk),
 .mem_aresetn(mem0_aresetn),
+.pcie_clk(pcie_clk),
+.pcie_aresetn(pcie_aresetn),
 
 /* USER INTERFACE */
 //memory read commands
@@ -965,7 +978,7 @@ mem_single_inf  mem_inf_inst0(
 /* CONTROL INTERFACE */
 // LITE interface
 //-- AXI Master Write Address Channel
-.s_axil_awaddr(axil_to_modules_awaddr[AxilPortDDR0]),              // output wire [31 : 0] m_axil_awaddr
+/*.s_axil_awaddr(axil_to_modules_awaddr[AxilPortDDR0]),              // output wire [31 : 0] m_axil_awaddr
 .s_axil_awprot(),              // output wire [2 : 0] m_axil_awprot
 .s_axil_awvalid(axil_to_modules_awvalid[AxilPortDDR0]),            // output wire m_axil_awvalid
 .s_axil_awready(axil_to_modules_awready[AxilPortDDR0]),            // input wire m_axil_awready
@@ -1033,11 +1046,12 @@ mem_single_inf  mem_inf_inst0(
 );
 
 mem_single_inf  mem_inf_inst1(
-.user_clk(net_clk),
+.user_clk(user_clk),
 .user_aresetn(ddr3_calib_complete),
 .mem_clk(mem1_clk),
 .mem_aresetn(mem1_aresetn),
-
+.pcie_clk(pcie_clk),
+.pcie_aresetn(pcie_aresetn),
 
 /* USER INTERFACE */
 //memory read commands
@@ -1073,7 +1087,7 @@ mem_single_inf  mem_inf_inst1(
 /* CONTROL INTERFACE */
 // LITE interface
 //-- AXI Master Write Address Channel
-.s_axil_awaddr(axil_to_modules_awaddr[AxilPortDDR1]),              // output wire [31 : 0] m_axil_awaddr
+/*.s_axil_awaddr(axil_to_modules_awaddr[AxilPortDDR1]),              // output wire [31 : 0] m_axil_awaddr
 .s_axil_awprot(),              // output wire [2 : 0] m_axil_awprot
 .s_axil_awvalid(axil_to_modules_awvalid[AxilPortDDR1]),            // output wire m_axil_awvalid
 .s_axil_awready(axil_to_modules_awready[AxilPortDDR1]),            // input wire m_axil_awready
@@ -1144,6 +1158,9 @@ mem_single_inf  mem_inf_inst1(
 mem_driver  mem_driver0_inst(
 
 /* I/O INTERFACE */
+// differential iodelayctrl clk (reference clock)
+//.clk_ref_p(clk_ref_p),
+//.clk_ref_n(clk_ref_n),
 // Differential system clocks
 .c0_sys_clk_p(c0_sys_clk_p),
 .c0_sys_clk_n(c0_sys_clk_n),
@@ -1218,6 +1235,9 @@ mem_driver  mem_driver0_inst(
 mem_driver  mem_driver1_inst(
 
 /* I/O INTERFACE */
+// differential iodelayctrl clk (reference clock)
+//.clk_ref_p(clk_ref_p),
+//.clk_ref_n(clk_ref_n),
 // Differential system clocks
 .c0_sys_clk_p(c1_sys_clk_p),
 .c0_sys_clk_n(c1_sys_clk_n),
@@ -1511,8 +1531,8 @@ wire[31:0]  h2c_dsc_byp_len_0;
 dma_inf dma_interface (
     .pcie_clk(pcie_clk),
     .pcie_aresetn(pcie_aresetn),
-    .user_clk(net_clk),
-    .user_aresetn(net_aresetn),
+    .user_clk(user_clk),
+    .user_aresetn(user_aresetn),
 
     /* USER INTERFACE */
     .s_axis_dma_read_cmd_tvalid     (axis_dma_read_cmd_tvalid),

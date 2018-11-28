@@ -30,7 +30,7 @@
 
 
 module axil_interconnect_done_right #(
-    parameter NUM_MASTER_PORTS = 4
+    parameter NUM_MASTER_PORTS = 2
 ) (
     input wire      aclk,
     input wire      aresetn,

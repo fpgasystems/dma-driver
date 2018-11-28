@@ -7,6 +7,8 @@ module mem_single_inf #(
 )(
     input wire                  user_clk,
     input wire                  user_aresetn,
+    input wire                  mem_clk,
+    input wire                  mem_aresetn,
     input wire                  pcie_clk,
     input wire                  pcie_aresetn, //TODO remove
     
@@ -71,8 +73,6 @@ module mem_single_inf #(
     input wire          s_axil_rready,
 
     /* DRIVER INTERFACE */
-    input wire                mem_clk,
-    input wire                mem_aresetn,
     // Slave Interface Write Address Ports
     output logic [AXI_ID_WIDTH-1:0]                 m_axi_awid,
     output logic [31:0]                             m_axi_awaddr,

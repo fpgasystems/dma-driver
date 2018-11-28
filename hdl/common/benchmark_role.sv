@@ -31,9 +31,11 @@
 module benchmark_role(
     input wire      net_clk,
     input wire      net_aresetn,
-
     input wire      pcie_clk,
     input wire      pcie_aresetn,
+    
+    output logic    user_clk,
+    output logic    user_aresetn,
 
 
     /* CONTROL INTERFACE */
@@ -152,6 +154,12 @@ module benchmark_role(
 
 );
 
+/*
+ * Clock
+ */
+//Choose clock for the user logic
+assign user_clk = pcie_clk;
+assign user_aresetn = pcie_aresetn; 
 
 
 /*
@@ -177,8 +185,8 @@ reg dmaBenchIsWrite;
 (* mark_debug = "true" *)reg[31:0] debug_cycle_counter;
 (* mark_debug = "true" *)reg runBench;
 
-always @(posedge net_clk) begin
-    if (~net_aresetn) begin
+always @(posedge user_clk) begin
+    if (~user_aresetn) begin
         axis_dma_bench_cmd_ready <= 0;
         runBench <= 0;
     end
@@ -224,8 +232,8 @@ dma_bench_ip dma_bench_inst(
  .s_axis_read_data_TDATA(s_axis_dma_read_data_tdata),
  .s_axis_read_data_TKEEP(s_axis_dma_read_data_tkeep),
  .s_axis_read_data_TLAST(s_axis_dma_read_data_tlast),
- .aresetn(net_aresetn),
- .aclk(net_clk),
+ .aresetn(user_aresetn),
+ .aclk(user_clk),
  .regBaseAddr_V({16'h00, dmaBenchBaseAddr}),
  .memorySize_V({16'h00, dmaBenchMemorySize}),
  .numberOfAccesses_V(dmaBenchNumberOfAccesses),
@@ -270,8 +278,8 @@ reg ddrBenchIsWrite;
 (* mark_debug = "true" *)reg[31:0] ddr_debug_cycle_counter;
 (* mark_debug = "true" *)reg ddrRunBench;
 
-always @(posedge net_clk) begin
-    if (~net_aresetn) begin
+always @(posedge user_clk) begin
+    if (~user_aresetn) begin
         axis_ddr_bench_cmd_ready <= 0;
         ddrRunBench <= 0;
         ddrBenchStart <= 0;
@@ -325,8 +333,8 @@ dma_bench_ip ddr0_bench_inst(
  .s_axis_read_data_TDATA(s_axis_mem0_read_data_tdata),
  .s_axis_read_data_TKEEP(s_axis_mem0_read_data_tkeep),
  .s_axis_read_data_TLAST(s_axis_mem0_read_data_tlast),
- .aresetn(net_aresetn),
- .aclk(net_clk),
+ .aresetn(user_aresetn),
+ .aclk(user_clk),
  .regBaseAddr_V({16'h00, ddrBenchBaseAddr}),
  .memorySize_V({16'h00, ddrBenchMemorySize}),
  .numberOfAccesses_V(ddrBenchNumberOfAccesses),
@@ -355,8 +363,8 @@ dma_bench_ip ddr1_bench_inst(
  .s_axis_read_data_TDATA(s_axis_mem1_read_data_tdata),
  .s_axis_read_data_TKEEP(s_axis_mem1_read_data_tkeep),
  .s_axis_read_data_TLAST(s_axis_mem1_read_data_tlast),
- .aresetn(net_aresetn),
- .aclk(net_clk),
+ .aresetn(user_aresetn),
+ .aclk(user_clk),
  .regBaseAddr_V({16'h00, ddrBenchBaseAddr}),
  .memorySize_V({16'h00, ddrBenchMemorySize}),
  .numberOfAccesses_V(ddrBenchNumberOfAccesses),
@@ -374,8 +382,8 @@ dma_bench_ip ddr1_bench_inst(
 benchmark_controller controller_inst(
     .pcie_clk(pcie_clk),
     .pcie_aresetn(pcie_aresetn),
-    .user_clk(net_clk),
-    .user_aresetn(net_aresetn),
+    .user_clk(user_clk),
+    .user_aresetn(user_aresetn),
     
      // AXI Lite Master Interface connections
     .s_axil_awaddr  (s_axil_awaddr[31:0]),
