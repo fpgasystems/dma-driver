@@ -44,7 +44,8 @@ int main(int argc, char *argv[]) {
                                     ("chunkLength,c", boost::program_options::value<unsigned int>(), "Lenght of the chunks")
                                     ("strideLength,s", boost::program_options::value<unsigned int>(), "Stride Length between memroy accesses")
                                     ("isWrite", boost::program_options::value<bool>(), "is write")
-                                    ("testDDR", boost::program_options::value<bool>(), "use DDR");
+                                    ("testDDR", boost::program_options::value<bool>(), "use DDR")
+                                    ("clockPeriod,p", boost::program_options::value<unsigned int>(), "Clock period of the FPGA, default: 4ns");
    boost::program_options::variables_map commandLineArgs;
    boost::program_options::store(boost::program_options::parse_command_line(argc, argv, programDescription), commandLineArgs);
    boost::program_options::notify(commandLineArgs);
@@ -59,6 +60,7 @@ int main(int argc, char *argv[]) {
    uint32_t accesses = 10;
    uint32_t chunkLength = 64;
    uint32_t strideLength = 0;
+   double clockPeriod = 4;
    bool isWrite = true;
    bool useDDR = false;
 
@@ -73,6 +75,9 @@ int main(int argc, char *argv[]) {
    }
    if (commandLineArgs.count("strideLength") > 0) {
       strideLength = commandLineArgs["strideLength"].as<unsigned int>();
+   }
+   if (commandLineArgs.count("clockPeriod") > 0) {
+       clockPeriod = commandLineArgs["clockPeriod"].as<double>();
    }
    if (commandLineArgs.count("isWrite") > 0) {
       isWrite = commandLineArgs["isWrite"].as<bool>();
@@ -138,7 +143,7 @@ int main(int argc, char *argv[]) {
    std::cout << "Execution cycles: " << cycles << std::endl;
    uint64_t transferSize = ((uint64_t) accesses) * ((uint64_t) chunkLength);
    double transferSizeGB  = ((double) transferSize) / 1024.0 / 1024.0 / 1024.0;
-   double tp  =  transferSizeGB / ((double) (6.4*cycles) / 1000.0 / 1000.0 / 1000.0);
+   double tp  =  transferSizeGB / ((double) (clockPeriod*cycles) / 1000.0 / 1000.0 / 1000.0);
    std::cout << std::fixed << "Transfer size [GiB]: " << transferSizeGB << std::endl;
    std::cout << std::fixed << "Throughput[GiB/s]: " << tp << std::endl;
    std::cout << std::fixed << "#" << memorySize << "\t" << transferSizeGB << "\t" << chunkLength << "\t" << strideLength << "\t" << cycles << "\t" << tp << std::endl;
