@@ -43,7 +43,9 @@ int main(int argc, char *argv[]) {
    fpga::FpgaController* controller = fpga::Fpga::getController();
 
 	fpga::Fpga::getController()->printDebugRegs();
-   fpga::Fpga::getController()->printDmaDebugRegs();
+   fpga::Fpga::getController()->printDmaStatsRegs();
+   fpga::Fpga::getController()->printDdrStatsRegs(0);
+   fpga::Fpga::getController()->printDdrStatsRegs(1);
 
    fpga::Fpga::clear();
 

@@ -61,21 +61,32 @@
 namespace fpga {
 
 enum class memoryOp : uint8_t { READ=0, WRITE=1 };
-enum class ctrlAddr : uint32_t { TLB = 2,
+enum class userCtrlAddr : uint32_t { DDR_BENCH = 2,
                                  DMA_BENCH = 3,
-                                 BOARDNUM = 7,
-                                 IPADDR = 8,
-                                 DMA_READS = 10,
-                                 DMA_WRITES = 11,
+                                 //BOARDNUM = 7,
+                                 //IPADDR = 8,
+                                 //DMA_READS = 10,
+                                 //DMA_WRITES = 11,
                                  DEBUG = 12,
-                                 DMA_DEBUG = 13,
+                                 DDR_BENCH_CYCLES = 13,
                                  DMA_BENCH_CYCLES = 14,
                               };
-static const uint32_t numDebugRegs = 2;
+static const uint32_t numDebugRegs = 0;
 static const std::string RegNames[] = {"TLB Miss counter",
                                        "TLB Page Boundary crossing counter",
                                        };
-static const uint32_t numDmaDebugRegs = 8;
+
+enum class dmaCtrlAddr : uint32_t { TLB = 2,
+                                 //DMA_BENCH = 3,
+                                 //BOARDNUM = 7,
+                                 //IPADDR = 8,
+                                 DMA_READS = 10,
+                                 DMA_WRITES = 11,
+                                 //DEBUG = 12,
+                                 STATS = 13,
+                                 //DMA_BENCH_CYCLES = 14,
+                              };
+static const uint32_t numDmaStatsRegs = 10;
 static const std::string DmaRegNames[] = {"DMA write cmd counter",
                                           "DMA write word counter",
                                           "DMA write pkg counter",
@@ -84,8 +95,32 @@ static const std::string DmaRegNames[] = {"DMA write cmd counter",
                                           "DMA read word counter",
                                           "DMA read pkg counter",
                                           "DMA read length counter",
+                                          "TLB Miss counter",
+                                          "TLB Page Boundary crossing counter",
+                                          };
+enum class ddrCtrlAddr: uint32_t { DEBUG = 9,
+                                 STATS = 1,
+                                 READS = 2,
+                                 WRITES = 3
+                              };
+static const uint32_t numDdrStatsRegs = 12;
+static const std::string DdrRegNames[] = {"write cmd counter",
+                                          "write word counter",
+                                          "write pkg counter",
+                                          "write length counter",
+                                          "write status counter",
+                                          "write error counter",
+                                          "read cmd counter",
+                                          "read word counter",
+                                          "read pkg counter",
+                                          "read length counter",
+                                          "read status counter",
+                                          "read error counter",
                                           };
 
+static const uint64_t userRegAddressOffset = 0;
+static const uint64_t dmaRegAddressOffset = 4096;
+static const uint64_t ddrRegAddressOffset[] = { 8192, 12288, 16384, 20480 };
 
 class FpgaController
 {
@@ -98,10 +133,17 @@ class FpgaController
          return instance;
       }*/
       void writeTlb(unsigned long vaddr, unsigned long paddr, bool isBase);
-      uint64_t runSeqWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength);
-      uint64_t runSeqReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength);
-      uint64_t runRandomWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength, uint32_t strideLength);
-      uint64_t runRandomReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength, uint32_t strideLength);
+      uint64_t runDmaSeqWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength);
+      uint64_t runDmaSeqReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength);
+      uint64_t runDmaRandomWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength, uint32_t strideLength);
+      uint64_t runDmaRandomReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength, uint32_t strideLength);
+
+      uint64_t runMemSeqWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength);
+      uint64_t runMemSeqReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength);
+      uint64_t runMemRandomWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength, uint32_t strideLength);
+      uint64_t runMemRandomReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength, uint32_t strideLength);
+
+
 
       void setIpAddr(uint32_t addr);
       void setBoardNumber(uint8_t num);
@@ -110,14 +152,22 @@ class FpgaController
       void resetDmaWrites();
       uint64_t getDmaWrites();
       void printDebugRegs();
-      void printDmaDebugRegs();
+      void printDmaStatsRegs();
+      void printDdrStatsRegs(uint8_t channel);
 
    private:
       uint64_t runDmaBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t  numberOfAccesses, uint32_t chunkLength, uint32_t strideLength, memoryOp op);
+      uint64_t runMemBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t  numberOfAccesses, uint32_t chunkLength, uint32_t strideLength, memoryOp op);
 
-      void writeReg(ctrlAddr addr, uint8_t value);
-      void writeReg(ctrlAddr addr, uint32_t value);
-      uint32_t readReg(ctrlAddr addr);
+
+      void writeReg(userCtrlAddr, uint32_t value);
+      void writeReg(dmaCtrlAddr, uint32_t value);
+      //void writeReg(ctrlAddr addr, uint8_t value);
+      //void writeReg(ctrlAddr addr, uint32_t value);
+
+      uint32_t readReg(userCtrlAddr addr);
+      uint32_t readReg(dmaCtrlAddr addr);
+      uint32_t readReg(ddrCtrlAddr addr, uint8_t channel);
 
    public:
       FpgaController(FpgaController const&)     = delete;
