@@ -33,6 +33,16 @@
 
 const uint64_t PAGE_SIZE = 2 * 1024 * 1024;
 
+struct internalCmd
+{
+	ap_uint<64> addr;
+	ap_uint<32> len;
+	ap_uint<48> page_offset;
+	internalCmd() {}
+	internalCmd(ap_uint<64> addr, ap_uint<32> len, ap_uint<48> po)
+		:addr(addr), len(len), page_offset(po) {}
+};
+
 struct boundCheckMeta
 {
 	ap_uint<32> length;
@@ -46,6 +56,6 @@ void mem_write_cmd_page_boundary_check_512(	hls::stream<memCmd>&		cmdIn,
 											hls::stream<net_axis<512> >&	dataIn,
 											hls::stream<memCmd>&		cmdOut,
 											hls::stream<net_axis<512> >&	dataOut,
-											ap_uint<64>			regBaseVaddr);
+											ap_uint<48>			regBaseVaddr);
 
 #endif

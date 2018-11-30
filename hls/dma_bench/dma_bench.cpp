@@ -141,30 +141,30 @@ void data_generator(hls::stream<bool>& writeDoneSignal,
 		}
 		break;
 	case 1:
-		if (!m_axis_write_data.full())
+		//if (!m_axis_write_data.full())
 		{
-		for (int i = 0; i < 64; ++i)
-		{
-#pragma HLS unroll
-			sendWord.data(i*8+7,i*8) = count+i;
-			if (remainingLength > i)
+			for (int i = 0; i < 64; ++i)
 			{
-				sendWord.keep[i] = 0x1;
+#pragma HLS unroll
+				sendWord.data(i*8+7,i*8) = count+i;
+				if (remainingLength > i)
+				{
+					sendWord.keep[i] = 0x1;
+				}
 			}
-		}
-		sendWord.last = (remainingLength <= 64);
-		remainingLength -= 64;
-		m_axis_write_data.write(sendWord);
-		if (sendWord.last)
-		{
-			count++;
-			remainingLength = chunkLength;
-		}
-		if (count == numberOfAccesses)
-		{
-			writeDoneSignal.write(1);
-			state = 0;
-		}
+			sendWord.last = (remainingLength <= 64);
+			remainingLength -= 64;
+			m_axis_write_data.write(sendWord);
+			if (sendWord.last)
+			{
+				count++;
+				remainingLength = chunkLength;
+			}
+			if (count == numberOfAccesses)
+			{
+				writeDoneSignal.write(1);
+				state = 0;
+			}
 		}
 		break;
 	}//switch
