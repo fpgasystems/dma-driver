@@ -58,32 +58,32 @@ void FpgaController::writeTlb(unsigned long vaddr, unsigned long paddr, bool isB
 #ifdef PRINT_DEBUG
    printf("Writing tlb mapping\n");fflush(stdout);
 #endif
-   writeReg(ctrlAddr::TLB, (uint32_t) vaddr);
-   writeReg(ctrlAddr::TLB, (uint32_t) (vaddr >> 32));
-   writeReg(ctrlAddr::TLB, (uint32_t) paddr);
-   writeReg(ctrlAddr::TLB, (uint32_t) (paddr >> 32));
-   writeReg(ctrlAddr::TLB, (uint32_t) isBase);
+   writeReg(dmaCtrlAddr::TLB, (uint32_t) vaddr);
+   writeReg(dmaCtrlAddr::TLB, (uint32_t) (vaddr >> 32));
+   writeReg(dmaCtrlAddr::TLB, (uint32_t) paddr);
+   writeReg(dmaCtrlAddr::TLB, (uint32_t) (paddr >> 32));
+   writeReg(dmaCtrlAddr::TLB, (uint32_t) isBase);
 #ifdef PRINT_DEBUG
    printf("done\n");fflush(stdout);
 #endif
 }
 
-uint64_t FpgaController::runSeqWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength)
+uint64_t FpgaController::runDmaSeqWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength)
 {
    runDmaBenchmark(baseAddr, memorySize, numberOfAccesses, chunkLength, 0, memoryOp::WRITE);
 }
 
-uint64_t FpgaController::runSeqReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength)
+uint64_t FpgaController::runDmaSeqReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength)
 {
    runDmaBenchmark(baseAddr, memorySize, numberOfAccesses, chunkLength, 0, memoryOp::READ);
 }
 
-uint64_t FpgaController::runRandomWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength, uint32_t strideLength)
+uint64_t FpgaController::runDmaRandomWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength, uint32_t strideLength)
 {
    runDmaBenchmark(baseAddr, memorySize, numberOfAccesses, chunkLength, strideLength, memoryOp::WRITE);
 }
 
-uint64_t FpgaController::runRandomReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength, uint32_t strideLength)
+uint64_t FpgaController::runDmaRandomReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength, uint32_t strideLength)
 {
    runDmaBenchmark(baseAddr, memorySize, numberOfAccesses, chunkLength, strideLength, memoryOp::READ);
 }
@@ -95,14 +95,14 @@ uint64_t FpgaController::runDmaBenchmark(uint64_t baseAddr, uint64_t memorySize,
    printf("Run dma benchmark\n");fflush(stdout);
 #endif
 
-   writeReg(ctrlAddr::DMA_BENCH, (uint32_t) baseAddr);
-   writeReg(ctrlAddr::DMA_BENCH, (uint32_t) (baseAddr >> 32));
-   writeReg(ctrlAddr::DMA_BENCH, (uint32_t) memorySize);
-   writeReg(ctrlAddr::DMA_BENCH, (uint32_t) (memorySize >> 32));
-   writeReg(ctrlAddr::DMA_BENCH, (uint32_t) numberOfAccesses);
-   writeReg(ctrlAddr::DMA_BENCH, (uint32_t) chunkLength);
-   writeReg(ctrlAddr::DMA_BENCH, (uint32_t) strideLength);
-   writeReg(ctrlAddr::DMA_BENCH, (uint32_t) op);
+   writeReg(userCtrlAddr::DMA_BENCH, (uint32_t) baseAddr);
+   writeReg(userCtrlAddr::DMA_BENCH, (uint32_t) (baseAddr >> 32));
+   writeReg(userCtrlAddr::DMA_BENCH, (uint32_t) memorySize);
+   writeReg(userCtrlAddr::DMA_BENCH, (uint32_t) (memorySize >> 32));
+   writeReg(userCtrlAddr::DMA_BENCH, (uint32_t) numberOfAccesses);
+   writeReg(userCtrlAddr::DMA_BENCH, (uint32_t) chunkLength);
+   writeReg(userCtrlAddr::DMA_BENCH, (uint32_t) strideLength);
+   writeReg(userCtrlAddr::DMA_BENCH, (uint32_t) op);
 
    //retrieve number of execution cycles
    
@@ -111,8 +111,8 @@ uint64_t FpgaController::runDmaBenchmark(uint64_t baseAddr, uint64_t memorySize,
    do
    {
       std::this_thread::sleep_for(1s);
-      lower = readReg(ctrlAddr::DMA_BENCH_CYCLES);
-      upper = readReg(ctrlAddr::DMA_BENCH_CYCLES);
+      lower = readReg(userCtrlAddr::DMA_BENCH_CYCLES);
+      upper = readReg(userCtrlAddr::DMA_BENCH_CYCLES);
    } while (lower == 0);
    return ((upper << 32) | lower);
 
@@ -122,44 +122,99 @@ uint64_t FpgaController::runDmaBenchmark(uint64_t baseAddr, uint64_t memorySize,
 #endif
 }
 
+uint64_t FpgaController::runMemSeqWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength)
+{
+   runMemBenchmark(baseAddr, memorySize, numberOfAccesses, chunkLength, 0, memoryOp::WRITE);
+}
+
+uint64_t FpgaController::runMemSeqReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength)
+{
+   runMemBenchmark(baseAddr, memorySize, numberOfAccesses, chunkLength, 0, memoryOp::READ);
+}
+
+uint64_t FpgaController::runMemRandomWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength, uint32_t strideLength)
+{
+   runMemBenchmark(baseAddr, memorySize, numberOfAccesses, chunkLength, strideLength, memoryOp::WRITE);
+}
+
+uint64_t FpgaController::runMemRandomReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength, uint32_t strideLength)
+{
+   runMemBenchmark(baseAddr, memorySize, numberOfAccesses, chunkLength, strideLength, memoryOp::READ);
+}
+
+uint64_t FpgaController::runMemBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength, uint32_t strideLength, memoryOp op)
+{
+   std::lock_guard<std::mutex> guard(ctrl_mutex);
+#ifdef PRINT_DEBUG
+   printf("Run dma benchmark\n");fflush(stdout);
+#endif
+
+   writeReg(userCtrlAddr::DDR_BENCH, (uint32_t) baseAddr);
+   writeReg(userCtrlAddr::DDR_BENCH, (uint32_t) (baseAddr >> 32));
+   writeReg(userCtrlAddr::DDR_BENCH, (uint32_t) memorySize);
+   writeReg(userCtrlAddr::DDR_BENCH, (uint32_t) (memorySize >> 32));
+   writeReg(userCtrlAddr::DDR_BENCH, (uint32_t) numberOfAccesses);
+   writeReg(userCtrlAddr::DDR_BENCH, (uint32_t) chunkLength);
+   writeReg(userCtrlAddr::DDR_BENCH, (uint32_t) strideLength);
+   writeReg(userCtrlAddr::DDR_BENCH, (uint32_t) op);
+
+   //retrieve number of execution cycles
+   
+   uint64_t lower = 0;
+   uint64_t upper = 0;
+   do
+   {
+      std::this_thread::sleep_for(1s);
+      lower = readReg(userCtrlAddr::DDR_BENCH_CYCLES);
+      upper = readReg(userCtrlAddr::DDR_BENCH_CYCLES);
+   } while (lower == 0);
+   return ((upper << 32) | lower);
+
+
+#ifdef PRINT_DEBUG
+   printf("done\n");fflush(stdout);
+#endif
+}
+
+
 void FpgaController::setIpAddr(uint32_t addr)
 {
    std::lock_guard<std::mutex> guard(ctrl_mutex);
 
-   writeReg(ctrlAddr::IPADDR, addr);
+   //writeReg(ctrlAddr::IPADDR, addr);
 }
 
 void FpgaController::setBoardNumber(uint8_t num)
 {
    std::lock_guard<std::mutex> guard(ctrl_mutex);
-   writeReg(ctrlAddr::BOARDNUM, num);
+   //writeReg(ctrlAddr::BOARDNUM, num);
 }
 
 void FpgaController::resetDmaReads()
 {
    std::lock_guard<std::mutex> guard(ctrl_mutex);
-   writeReg(ctrlAddr::DMA_READS, uint8_t(1));
+   writeReg(dmaCtrlAddr::DMA_READS, uint8_t(1));
 }
 
 uint64_t FpgaController::getDmaReads()
 {
    std::lock_guard<std::mutex> guard(ctrl_mutex);
-   uint64_t lower = readReg(ctrlAddr::DMA_READS);
-   uint64_t upper = readReg(ctrlAddr::DMA_READS);
+   uint64_t lower = readReg(dmaCtrlAddr::DMA_READS);
+   uint64_t upper = readReg(dmaCtrlAddr::DMA_READS);
    return ((upper << 32) | lower);
 }
 
 void FpgaController::resetDmaWrites()
 {
    std::lock_guard<std::mutex> guard(ctrl_mutex);
-   writeReg(ctrlAddr::DMA_WRITES, uint8_t(1));
+   writeReg(dmaCtrlAddr::DMA_WRITES, uint8_t(1));
 }
 
 uint64_t FpgaController::getDmaWrites()
 {
    std::lock_guard<std::mutex> guard(ctrl_mutex);
-   uint64_t lower = readReg(ctrlAddr::DMA_WRITES);
-   uint64_t upper = readReg(ctrlAddr::DMA_WRITES);
+   uint64_t lower = readReg(dmaCtrlAddr::DMA_WRITES);
+   uint64_t upper = readReg(dmaCtrlAddr::DMA_WRITES);
    return ((upper << 32) | lower);
 }
 
@@ -170,39 +225,62 @@ void FpgaController::printDebugRegs()
    std::cout << "------------ DEBUG ---------------" << std::endl;
    for (int i = 0; i < numDebugRegs; ++i)
    {
-      uint32_t reg = readReg(ctrlAddr::DEBUG);
+      uint32_t reg = readReg(userCtrlAddr::DEBUG);
       std::cout << RegNames[i] << ": " << std::dec << reg << std::endl;
    }
    std::cout << "----------------------------------" << std::endl;
 }
 
-void FpgaController::printDmaDebugRegs()
+void FpgaController::printDmaStatsRegs()
 {
    std::lock_guard<std::mutex> guard(ctrl_mutex);
 
-   std::cout << "------------ DMA DEBUG ---------------" << std::endl;
-   for (int i = 0; i < numDmaDebugRegs; ++i)
+   std::cout << "------------ DMA STATISTICS ---------------" << std::endl;
+   for (int i = 0; i < numDmaStatsRegs; ++i)
    {
-      uint32_t reg = readReg(ctrlAddr::DMA_DEBUG);
+      uint32_t reg = readReg(dmaCtrlAddr::STATS);
       std::cout << DmaRegNames[i] << ": " << std::dec << reg << std::endl;
    }
    std::cout << "----------------------------------" << std::endl;
 }
 
+void FpgaController::printDdrStatsRegs(uint8_t channel)
+{
+   std::lock_guard<std::mutex> guard(ctrl_mutex);
 
-void FpgaController::writeReg(ctrlAddr addr, uint8_t value)
+   std::cout << "------------ DDR" << (uint16_t) channel << " STATISTICS ---------------" << std::endl;
+   for (int i = 0; i < numDdrStatsRegs; ++i)
+   {
+      uint32_t reg = readReg(ddrCtrlAddr::STATS, channel);
+      std::cout << "DDR" << (uint16_t) channel << " ";
+      std::cout << DdrRegNames[i] << ": " << std::dec << reg << std::endl;
+   }
+   std::cout << "----------------------------------" << std::endl;
+}
+
+
+
+/*void FpgaController::writeReg(ctrlAddr addr, uint8_t value)
 {
    volatile uint32_t* wPtr = (uint32_t*) (((uint64_t) m_base) + (uint64_t) ((uint32_t) addr << 5));
    uint32_t writeVal = htols(value);
    *wPtr = writeVal;
-}
+}*/
 
-void FpgaController::writeReg(ctrlAddr addr, uint32_t value)
+void FpgaController::writeReg(userCtrlAddr addr, uint32_t value)
 {
-   volatile uint32_t* wPtr = (uint32_t*) (((uint64_t) m_base) + (uint64_t) ((uint32_t) addr << 5));
+   volatile uint32_t* wPtr = (uint32_t*) (((uint64_t) m_base) + userRegAddressOffset + (uint64_t) ((uint32_t) addr << 5));
    uint32_t writeVal = htols(value);
    *wPtr = writeVal;
 }
+
+void FpgaController::writeReg(dmaCtrlAddr addr, uint32_t value)
+{
+   volatile uint32_t* wPtr = (uint32_t*) (((uint64_t) m_base) + dmaRegAddressOffset +  (uint64_t) ((uint32_t) addr << 5));
+   uint32_t writeVal = htols(value);
+   *wPtr = writeVal;
+}
+
 
 /*void FpgaController::writeReg(ctrlAddr addr, uint64_t value)
 {
@@ -215,10 +293,24 @@ void FpgaController::writeReg(ctrlAddr addr, uint32_t value)
 
 }*/
 
-uint32_t FpgaController::readReg(ctrlAddr addr)
+uint32_t FpgaController::readReg(userCtrlAddr addr)
 {
-   volatile uint32_t* rPtr = (uint32_t*) (((uint64_t) m_base) + (uint64_t) ((uint32_t) addr << 5));
+   volatile uint32_t* rPtr = (uint32_t*) (((uint64_t) m_base) + userRegAddressOffset  + (uint64_t) ((uint32_t) addr << 5));
   return htols(*rPtr);
 }
+
+uint32_t FpgaController::readReg(dmaCtrlAddr addr)
+{
+   volatile uint32_t* rPtr = (uint32_t*) (((uint64_t) m_base) + dmaRegAddressOffset  + (uint64_t) ((uint32_t) addr << 5));
+  return htols(*rPtr);
+}
+
+uint32_t FpgaController::readReg(ddrCtrlAddr addr, uint8_t channel)
+{
+   volatile uint32_t* rPtr = (uint32_t*) (((uint64_t) m_base) + ddrRegAddressOffset[channel]  + (uint64_t) ((uint32_t) addr << 5));
+  return htols(*rPtr);
+}
+
+
 
 } /* namespace fpga */
