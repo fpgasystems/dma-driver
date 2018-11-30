@@ -183,12 +183,10 @@ axi_lite_clock_converter axi_lite_clock_converter (
 
 // ACTUAL LOGIC
 
-(* mark_debug = "true" *)reg[7:0] writeState;
-(* mark_debug = "true" *)reg[7:0] readState;
+reg[7:0] writeState;
+reg[7:0] readState;
 
-//(* mark_debug = "true" *)reg[31:0] writeAddr;
-(* mark_debug = "true" *)reg[7:0] readAddr;
-
+reg[7:0] readAddr;
 
 //handle writes => always return default ERROR
 always @(posedge mem_clk)
@@ -207,8 +205,6 @@ begin
                 axil_wready <= 1'b0;
                 axil_bvalid <= 1'b0;
                 
-                
-                //writeAddr = (axil_awaddr[11:0] >> 5);
                 if (axil_awvalid && axil_awready) begin
                     axil_awready <= 1'b0;
                     axil_wready <= 1'b1;
@@ -236,7 +232,7 @@ begin
 end
 
 //handle reads
-(* mark_debug = "true" *)reg[7:0] statsRegAddr;
+reg[7:0] statsRegAddr;
 reg read_length_upper;
 reg write_length_upper;
 always @(posedge mem_clk)
@@ -290,7 +286,6 @@ begin
                             STATS_WRITE_LEN: begin
                                 axil_rdata <= write_length_counter[31:0];
                             end
-                            //TODO rename
                             STATS_WRITE_STS: begin
                                 axil_rdata <= write_sts_counter;
                             end

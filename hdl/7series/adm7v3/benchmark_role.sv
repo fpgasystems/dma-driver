@@ -27,6 +27,7 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
+`include "os_types.svh"
 
 module benchmark_role(
     input wire      net_clk,
@@ -69,67 +70,20 @@ module benchmark_role(
     /* NETWORK - RDMA INTERFACE */
 
     /* MEMORY INTERFACE */
-    // Channel 0 read path
-    output logic            m_axis_mem0_read_cmd_tvalid,
-    input wire              m_axis_mem0_read_cmd_tready,
-    output logic[95:0]      m_axis_mem0_read_cmd_tdata, //[95:64]: length, [63:0]: addresss
+    // read command
+    axis_mem_cmd.master     m_axis_mem_read_cmd[NUM_DDR_CHANNELS],
     // read status
-    /*input wire            s_axis_mem0_read_sts_tvalid,
-    output logic            s_axis_mem0_read_sts_tready,
-    input wire [7:0]        s_axis_mem0_read_sts_tdata,*/
+    axis_mem_status.slave   s_axis_mem_read_status[NUM_DDR_CHANNELS],
     // read data stream
-    input wire [511:0]      s_axis_mem0_read_data_tdata,
-    input wire [63:0]       s_axis_mem0_read_data_tkeep,
-    input wire              s_axis_mem0_read_data_tlast,
-    input wire              s_axis_mem0_read_data_tvalid,
-    output logic            s_axis_mem0_read_data_tready,
+    axi_stream.slave        s_axis_mem_read_data[NUM_DDR_CHANNELS],
     
-    // Channel 0 write path
-    output logic            m_axis_mem0_write_cmd_tvalid,
-    input wire              m_axis_mem0_write_cmd_tready,
-    output logic[95:0]      m_axis_mem0_write_cmd_tdata,  //[95:64]: length, [63:0]: addresss
+    // write command
+    axis_mem_cmd.master     m_axis_mem_write_cmd[NUM_DDR_CHANNELS],
     // write status
-    input wire              s_axis_mem0_write_sts_tvalid,
-    output logic            s_axis_mem0_write_sts_tready,
-    input wire [7:0]        s_axis_mem0_write_sts_tdata,
+    axis_mem_status.slave   s_axis_mem_write_status[NUM_DDR_CHANNELS],
     // write data stream
-    output logic[511:0]     m_axis_mem0_write_data_tdata,
-    output logic[63:0]      m_axis_mem0_write_data_tkeep,
-    output logic            m_axis_mem0_write_data_tlast,
-    output logic            m_axis_mem0_write_data_tvalid,
-    input wire              m_axis_mem0_write_data_tready,
+    axi_stream.master       m_axis_mem_write_data[NUM_DDR_CHANNELS],
     
-    // Channel 1 read path
-    output logic            m_axis_mem1_read_cmd_tvalid,
-    input wire              m_axis_mem1_read_cmd_tready,
-    output logic[95:0]      m_axis_mem1_read_cmd_tdata, //[95:64]: length, [63:0]: addresss
-    // read status
-    /*input wire            s_axis_mem1_read_sts_tvalid,
-    output logic            s_axis_mem1_read_sts_tready,
-    input wire [7:0]        s_axis_mem1_read_sts_tdata,*/
-    // read stream
-    input wire [511:0]      s_axis_mem1_read_data_tdata,
-    input wire [63:0]       s_axis_mem1_read_data_tkeep,
-    input wire              s_axis_mem1_read_data_tlast,
-    input wire              s_axis_mem1_read_data_tvalid,
-    output logic            s_axis_mem1_read_data_tready,
-    
-    // Channel 1 write path
-    output logic            m_axis_mem1_write_cmd_tvalid,
-    input wire              m_axis_mem1_write_cmd_tready,
-    output logic[95:0]      m_axis_mem1_write_cmd_tdata, //[95:64]: length, [63:0]: addresss
-    // write status
-    input wire              s_axis_mem1_write_sts_tvalid,
-    output logic            s_axis_mem1_write_sts_tready,
-    input wire [7:0]        s_axis_mem1_write_sts_tdata,
-    // write stream
-    output logic[511:0]     m_axis_mem1_write_data_tdata,
-    output logic[63:0]      m_axis_mem1_write_data_tkeep,
-    output logic            m_axis_mem1_write_data_tlast,
-    output logic            m_axis_mem1_write_data_tvalid,
-    input wire              m_axis_mem1_write_data_tready,
-
-
     /* DMA INTERFACE */
     output logic            m_axis_dma_read_cmd_tvalid,
     input wire              m_axis_dma_read_cmd_tready,
@@ -249,8 +203,10 @@ wire[192:0] axis_ddr_bench_cmd_data;
 (* mark_debug = "true" *)wire[1:0]   axis_ddr_bench_cmd_dest;
 
 //TODO
-assign s_axis_mem0_write_sts_tready = 1'b1;
-assign s_axis_mem1_write_sts_tready = 1'b1;
+assign s_axis_mem_write_status[0].ready = 1'b1;
+assign s_axis_mem_write_status[1].ready = 1'b1;
+assign s_axis_mem_read_status[0].ready = 1'b1;
+assign s_axis_mem_read_status[1].ready = 1'b1;
 
 wire ddr0_execution_cycles_valid;
 wire[63:0] ddr0_execution_cycles_data;
@@ -307,24 +263,24 @@ always @(posedge net_clk) begin
         end
     end
 end
- 
+
 dma_bench_ip ddr0_bench_inst(
- .m_axis_read_cmd_TVALID(m_axis_mem0_read_cmd_tvalid),
- .m_axis_read_cmd_TREADY(m_axis_mem0_read_cmd_tready),
- .m_axis_read_cmd_TDATA(m_axis_mem0_read_cmd_tdata),
- .m_axis_write_cmd_TVALID(m_axis_mem0_write_cmd_tvalid),
- .m_axis_write_cmd_TREADY(m_axis_mem0_write_cmd_tready),
- .m_axis_write_cmd_TDATA(m_axis_mem0_write_cmd_tdata),
- .m_axis_write_data_TVALID(m_axis_mem0_write_data_tvalid),
- .m_axis_write_data_TREADY(m_axis_mem0_write_data_tready),
- .m_axis_write_data_TDATA(m_axis_mem0_write_data_tdata),
- .m_axis_write_data_TKEEP(m_axis_mem0_write_data_tkeep),
- .m_axis_write_data_TLAST(m_axis_mem0_write_data_tlast),
- .s_axis_read_data_TVALID(s_axis_mem0_read_data_tvalid),
- .s_axis_read_data_TREADY(s_axis_mem0_read_data_tready),
- .s_axis_read_data_TDATA(s_axis_mem0_read_data_tdata),
- .s_axis_read_data_TKEEP(s_axis_mem0_read_data_tkeep),
- .s_axis_read_data_TLAST(s_axis_mem0_read_data_tlast),
+ .m_axis_read_cmd_TVALID(m_axis_mem_read_cmd[0].valid),
+ .m_axis_read_cmd_TREADY(m_axis_mem_read_cmd[0].ready),
+ .m_axis_read_cmd_TDATA({m_axis_mem_read_cmd[0].length, m_axis_mem_read_cmd[0].address}),
+ .m_axis_write_cmd_TVALID(m_axis_mem_write_cmd[0].valid),
+ .m_axis_write_cmd_TREADY(m_axis_mem_write_cmd[0].ready),
+ .m_axis_write_cmd_TDATA({m_axis_mem_write_cmd[0].length, m_axis_mem_write_cmd[0].address}),
+ .m_axis_write_data_TVALID(m_axis_mem_write_data[0].valid),
+ .m_axis_write_data_TREADY(m_axis_mem_write_data[0].ready),
+ .m_axis_write_data_TDATA(m_axis_mem_write_data[0].data),
+ .m_axis_write_data_TKEEP(m_axis_mem_write_data[0].keep),
+ .m_axis_write_data_TLAST(m_axis_mem_write_data[0].last),
+ .s_axis_read_data_TVALID(s_axis_mem_read_data[0].valid),
+ .s_axis_read_data_TREADY(s_axis_mem_read_data[0].ready),
+ .s_axis_read_data_TDATA(s_axis_mem_read_data[0].data),
+ .s_axis_read_data_TKEEP(s_axis_mem_read_data[0].keep),
+ .s_axis_read_data_TLAST(s_axis_mem_read_data[0].last),
  .aresetn(net_aresetn),
  .aclk(net_clk),
  .regBaseAddr_V({16'h00, ddrBenchBaseAddr}),
@@ -339,22 +295,22 @@ dma_bench_ip ddr0_bench_inst(
  );
 
 dma_bench_ip ddr1_bench_inst(
- .m_axis_read_cmd_TVALID(m_axis_mem1_read_cmd_tvalid),
- .m_axis_read_cmd_TREADY(m_axis_mem1_read_cmd_tready),
- .m_axis_read_cmd_TDATA(m_axis_mem1_read_cmd_tdata),
- .m_axis_write_cmd_TVALID(m_axis_mem1_write_cmd_tvalid),
- .m_axis_write_cmd_TREADY(m_axis_mem1_write_cmd_tready),
- .m_axis_write_cmd_TDATA(m_axis_mem1_write_cmd_tdata),
- .m_axis_write_data_TVALID(m_axis_mem1_write_data_tvalid),
- .m_axis_write_data_TREADY(m_axis_mem1_write_data_tready),
- .m_axis_write_data_TDATA(m_axis_mem1_write_data_tdata),
- .m_axis_write_data_TKEEP(m_axis_mem1_write_data_tkeep),
- .m_axis_write_data_TLAST(m_axis_mem1_write_data_tlast),
- .s_axis_read_data_TVALID(s_axis_mem1_read_data_tvalid),
- .s_axis_read_data_TREADY(s_axis_mem1_read_data_tready),
- .s_axis_read_data_TDATA(s_axis_mem1_read_data_tdata),
- .s_axis_read_data_TKEEP(s_axis_mem1_read_data_tkeep),
- .s_axis_read_data_TLAST(s_axis_mem1_read_data_tlast),
+ .m_axis_read_cmd_TVALID(m_axis_mem_read_cmd[1].valid),
+ .m_axis_read_cmd_TREADY(m_axis_mem_read_cmd[1].ready),
+ .m_axis_read_cmd_TDATA({m_axis_mem_read_cmd[1].length, m_axis_mem_read_cmd[1].address}),
+ .m_axis_write_cmd_TVALID(m_axis_mem_write_cmd[1].valid),
+ .m_axis_write_cmd_TREADY(m_axis_mem_write_cmd[1].ready),
+ .m_axis_write_cmd_TDATA({m_axis_mem_write_cmd[1].length, m_axis_mem_write_cmd[1].address}),
+ .m_axis_write_data_TVALID(m_axis_mem_write_data[1].valid),
+ .m_axis_write_data_TREADY(m_axis_mem_write_data[1].ready),
+ .m_axis_write_data_TDATA(m_axis_mem_write_data[1].data),
+ .m_axis_write_data_TKEEP(m_axis_mem_write_data[1].keep),
+ .m_axis_write_data_TLAST(m_axis_mem_write_data[1].last),
+ .s_axis_read_data_TVALID(s_axis_mem_read_data[1].valid),
+ .s_axis_read_data_TREADY(s_axis_mem_read_data[1].ready),
+ .s_axis_read_data_TDATA(s_axis_mem_read_data[1].data),
+ .s_axis_read_data_TKEEP(s_axis_mem_read_data[1].keep),
+ .s_axis_read_data_TLAST(s_axis_mem_read_data[1].last),
  .aresetn(net_aresetn),
  .aclk(net_clk),
  .regBaseAddr_V({16'h00, ddrBenchBaseAddr}),

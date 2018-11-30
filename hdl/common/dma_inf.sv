@@ -559,13 +559,8 @@ dma_controller controller_inst(
     .dma_write_length_counter            (dma_write_length_counter),
     .reset_dma_read_length_counter      (reset_dma_read_length_counter),
     .dma_read_length_counter            (dma_read_length_counter),
-    .dma_reads_flushed                  (dma_reads_flushed),
+    .dma_reads_flushed                  (dma_reads_flushed)
 
-   //TODO 
-    .set_ip_addr_valid(),//set_ip_addr_valid),
-    .set_ip_addr_data(),//set_ip_addr_data),
-    .set_board_number_valid(),//set_board_number_valid),
-    .set_board_number_data()//set_board_number_data)
 );
 
 /*
