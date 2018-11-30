@@ -27,6 +27,8 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
+`include "os_types.svh"
+
 typedef struct packed
 {
     logic[255:0]    data;
@@ -59,31 +61,8 @@ module dma_driver(
     output logic        msi_enable,
     output logic[2:0]   msi_vector_width,*/
 
-    // LITE interface   
-    //-- AXI Master Write Address Channel
-    output logic[31:0]  m_axil_awaddr,
-    output logic[2:0]   m_axil_awprot,
-    output logic        m_axil_awvalid,
-    input wire          m_axil_awready,
-    //-- AXI Master Write Data Channel
-    output logic[31:0]  m_axil_wdata,
-    output logic[3:0]   m_axil_wstrb,
-    output logic        m_axil_wvalid,
-    input wire          m_axil_wready,
-    //-- AXI Master Write Response Channel
-    input wire          m_axil_bvalid,
-    input wire[1:0]     m_axil_bresp,
-    output logic        m_axil_bready,
-    //-- AXI Master Read Address Channel
-    output logic[31:0]  m_axil_araddr,
-    output logic[2:0]   m_axil_arprot,
-    output logic        m_axil_arvalid,
-    input wire          m_axil_arready,
-    input wire[31:0]    m_axil_rdata,
-    //-- AXI Master Read Data Channel
-    input wire[1:0]     m_axil_rresp,
-    input wire          m_axil_rvalid,
-    output logic        m_axil_rready,
+    // Axi Lite Control interface
+    axi_lite.master     m_axil,
     
     // AXI Stream Interface
     input wire          s_axis_c2h_tvalid_0,
@@ -182,29 +161,29 @@ xdma_ip dma_inst (
   
   // LITE interface   
   //-- AXI Master Write Address Channel
-  .m_axil_awaddr(m_axil_awaddr),              // output wire [31 : 0] m_axil_awaddr
-  .m_axil_awprot(m_axil_awprot),              // output wire [2 : 0] m_axil_awprot
-  .m_axil_awvalid(m_axil_awvalid),            // output wire m_axil_awvalid
-  .m_axil_awready(m_axil_awready),            // input wire m_axil_awready
+  .m_axil_awaddr(m_axil.awaddr),              // output wire [31 : 0] m_axil_awaddr
+  .m_axil_awprot(),              // output wire [2 : 0] m_axil_awprot
+  .m_axil_awvalid(m_axil.awvalid),            // output wire m_axil_awvalid
+  .m_axil_awready(m_axil.awready),            // input wire m_axil_awready
   //-- AXI Master Write Data Channel
-  .m_axil_wdata(m_axil_wdata),                // output wire [31 : 0] m_axil_wdata
-  .m_axil_wstrb(m_axil_wstrb),                // output wire [3 : 0] m_axil_wstrb
-  .m_axil_wvalid(m_axil_wvalid),              // output wire m_axil_wvalid
-  .m_axil_wready(m_axil_wready),              // input wire m_axil_wready
+  .m_axil_wdata(m_axil.wdata),                // output wire [31 : 0] m_axil_wdata
+  .m_axil_wstrb(m_axil.wstrb),                // output wire [3 : 0] m_axil_wstrb
+  .m_axil_wvalid(m_axil.wvalid),              // output wire m_axil_wvalid
+  .m_axil_wready(m_axil.wready),              // input wire m_axil_wready
   //-- AXI Master Write Response Channel
-  .m_axil_bvalid(m_axil_bvalid),              // input wire m_axil_bvalid
-  .m_axil_bresp(m_axil_bresp),                // input wire [1 : 0] m_axil_bresp
-  .m_axil_bready(m_axil_bready),              // output wire m_axil_bready
+  .m_axil_bvalid(m_axil.bvalid),              // input wire m_axil_bvalid
+  .m_axil_bresp(m_axil.bresp),                // input wire [1 : 0] m_axil_bresp
+  .m_axil_bready(m_axil.bready),              // output wire m_axil_bready
   //-- AXI Master Read Address Channel
-  .m_axil_araddr(m_axil_araddr),              // output wire [31 : 0] m_axil_araddr
-  .m_axil_arprot(m_axil_arprot),              // output wire [2 : 0] m_axil_arprot
-  .m_axil_arvalid(m_axil_arvalid),            // output wire m_axil_arvalid
-  .m_axil_arready(m_axil_arready),            // input wire m_axil_arready
-  .m_axil_rdata(m_axil_rdata),                // input wire [31 : 0] m_axil_rdata
+  .m_axil_araddr(m_axil.araddr),              // output wire [31 : 0] m_axil_araddr
+  .m_axil_arprot(),              // output wire [2 : 0] m_axil_arprot
+  .m_axil_arvalid(m_axil.arvalid),            // output wire m_axil_arvalid
+  .m_axil_arready(m_axil.arready),            // input wire m_axil_arready
+  .m_axil_rdata(m_axil.rdata),                // input wire [31 : 0] m_axil_rdata
   //-- AXI Master Read Data Channel
-  .m_axil_rresp(m_axil_rresp),                // input wire [1 : 0] m_axil_rresp
-  .m_axil_rvalid(m_axil_rvalid),              // input wire m_axil_rvalid
-  .m_axil_rready(m_axil_rready),              // output wire m_axil_rready
+  .m_axil_rresp(m_axil.rresp),                // input wire [1 : 0] m_axil_rresp
+  .m_axil_rvalid(m_axil.rvalid),              // input wire m_axil_rvalid
+  .m_axil_rready(m_axil.rready),              // output wire m_axil_rready
   
   // AXI Stream Interface
   .s_axis_c2h_tvalid_0(axis_dma_write_data_256_tvalid),                      // input wire s_axis_c2h_tvalid_0

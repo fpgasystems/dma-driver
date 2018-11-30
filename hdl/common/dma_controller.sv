@@ -27,6 +27,8 @@
  `timescale 1ns / 1ps
 `default_nettype none
 
+`include "os_types.svh"
+
 module dma_controller
 (
     //clk
@@ -35,25 +37,11 @@ module dma_controller
     // user clk
     input wire          user_clk,
     input wire          user_aresetn,
+
+    // Control Interface
+    axi_lite.slave      s_axil,
     
-    input  wire  [31:0] s_axil_awaddr,
-    input  wire         s_axil_awvalid,
-    output wire         s_axil_awready,
-    input  wire  [31:0] s_axil_wdata,
-    input  wire   [3:0] s_axil_wstrb,
-    input  wire         s_axil_wvalid,
-    output wire         s_axil_wready,
-    output wire   [1:0] s_axil_bresp,
-    output wire         s_axil_bvalid,
-    input  wire         s_axil_bready,
-    input  wire  [31:0] s_axil_araddr,
-    input  wire         s_axil_arvalid,
-    output wire         s_axil_arready,
-    output wire  [31:0] s_axil_rdata,
-    output wire   [1:0] s_axil_rresp,
-    output wire         s_axil_rvalid,
-    input  wire         s_axil_rready,
-    
+    // TLB command
     output reg         m_axis_tlb_interface_valid,
     input wire         m_axis_tlb_interface_ready,
     output reg[135:0]  m_axis_tlb_interface_data,
@@ -149,25 +137,25 @@ wire         axil_rready;
 axi_register_slice axil_register_slice (
   .aclk(pcie_clk),                    // input wire aclk
   .aresetn(pcie_aresetn),              // input wire aresetn
-  .s_axi_awaddr(s_axil_awaddr),    // input wire [31 : 0] s_axi_awaddr
+  .s_axi_awaddr(s_axil.awaddr),    // input wire [31 : 0] s_axi_awaddr
   .s_axi_awprot(3'b00),    // input wire [2 : 0] s_axi_awprot
-  .s_axi_awvalid(s_axil_awvalid),  // input wire s_axi_awvalid
-  .s_axi_awready(s_axil_awready),  // output wire s_axi_awready
-  .s_axi_wdata(s_axil_wdata),      // input wire [31 : 0] s_axi_wdata
-  .s_axi_wstrb(s_axil_wstrb),      // input wire [3 : 0] s_axi_wstrb
-  .s_axi_wvalid(s_axil_wvalid),    // input wire s_axi_wvalid
-  .s_axi_wready(s_axil_wready),    // output wire s_axi_wready
-  .s_axi_bresp(s_axil_bresp),      // output wire [1 : 0] s_axi_bresp
-  .s_axi_bvalid(s_axil_bvalid),    // output wire s_axi_bvalid
-  .s_axi_bready(s_axil_bready),    // input wire s_axi_bready
-  .s_axi_araddr(s_axil_araddr),    // input wire [31 : 0] s_axi_araddr
+  .s_axi_awvalid(s_axil.awvalid),  // input wire s_axi_awvalid
+  .s_axi_awready(s_axil.awready),  // output wire s_axi_awready
+  .s_axi_wdata(s_axil.wdata),      // input wire [31 : 0] s_axi_wdata
+  .s_axi_wstrb(s_axil.wstrb),      // input wire [3 : 0] s_axi_wstrb
+  .s_axi_wvalid(s_axil.wvalid),    // input wire s_axi_wvalid
+  .s_axi_wready(s_axil.wready),    // output wire s_axi_wready
+  .s_axi_bresp(s_axil.bresp),      // output wire [1 : 0] s_axi_bresp
+  .s_axi_bvalid(s_axil.bvalid),    // output wire s_axi_bvalid
+  .s_axi_bready(s_axil.bready),    // input wire s_axi_bready
+  .s_axi_araddr(s_axil.araddr),    // input wire [31 : 0] s_axi_araddr
   .s_axi_arprot(3'b00),    // input wire [2 : 0] s_axi_arprot
-  .s_axi_arvalid(s_axil_arvalid),  // input wire s_axi_arvalid
-  .s_axi_arready(s_axil_arready),  // output wire s_axi_arready
-  .s_axi_rdata(s_axil_rdata),      // output wire [31 : 0] s_axi_rdata
-  .s_axi_rresp(s_axil_rresp),      // output wire [1 : 0] s_axi_rresp
-  .s_axi_rvalid(s_axil_rvalid),    // output wire s_axi_rvalid
-  .s_axi_rready(s_axil_rready),    // input wire s_axi_rready
+  .s_axi_arvalid(s_axil.arvalid),  // input wire s_axi_arvalid
+  .s_axi_arready(s_axil.arready),  // output wire s_axi_arready
+  .s_axi_rdata(s_axil.rdata),      // output wire [31 : 0] s_axi_rdata
+  .s_axi_rresp(s_axil.rresp),      // output wire [1 : 0] s_axi_rresp
+  .s_axi_rvalid(s_axil.rvalid),    // output wire s_axi_rvalid
+  .s_axi_rready(s_axil.rready),    // input wire s_axi_rready
   //.m_axi_aclk(user_clk),        // input wire m_axi_aclk
   //.m_axi_aresetn(user_aresetn),  // input wire m_axi_aresetn
   .m_axi_awaddr(axil_awaddr),    // output wire [31 : 0] m_axi_awaddr
@@ -211,12 +199,7 @@ begin
         axil_bvalid <= 1'b0;
         
         m_axis_tlb_interface_valid <= 1'b0;
-        //m_axis_dma_bench_cmd_valid <= 1'b0;
-
-        
         word_counter <= 0;
-        //set_ip_addr_valid <= 1'b0;
-        //set_board_number_valid <= 1'b0;
         
         writeState <= WRITE_IDLE;
     end
@@ -227,7 +210,6 @@ begin
                 axil_wready <= 1'b0;
                 axil_bvalid <= 1'b0;
                 m_axis_tlb_interface_valid <= 1'b0;
-                //m_axis_dma_bench_cmd_valid <= 1'b0;
                 
                 reset_dma_write_length_counter <= 1'b0;
                 reset_dma_read_length_counter <= 1'b0;
@@ -271,20 +253,6 @@ begin
                                 end
                             endcase
                         end
-                        /*GPIO_REG_IPADDR: begin
-                            set_ip_addr_valid <= 1'b1;
-                            set_ip_addr_data <= axil_wdata[31:0];
-                            axil_bvalid <= 1'b1;
-                            axil_bresp <= AXI_RESP_OK;
-                            writeState <= WRITE_RESPONSE;
-                        end
-                        GPIO_REG_BOARDNUM: begin
-                            set_board_number_valid <= 1'b1;
-                            set_board_number_data <= axil_wdata[3:0];
-                            axil_bvalid <= 1'b1;
-                            axil_bresp <= AXI_RESP_OK;
-                            writeState <= WRITE_RESPONSE;
-                        end*/
                         GPIO_REG_DMA_READS: begin
                             reset_dma_read_length_counter <= 1'b1;
                             axil_bvalid <= 1'b1;

@@ -236,68 +236,6 @@ adm7v3_10g_interface n10g_interface_inst (
 .led());
 
 
-/*
- * Clock Crossing for IP addreass & Board number
- */
-/*axis_clock_converter_32 axis_clock_converter_ip_address (
-   .s_axis_aresetn(pcie_aresetn),  // input wire s_axis_aresetn
-   .s_axis_aclk(pcie_clk),        // input wire s_axis_aclk
-   .s_axis_tvalid(set_ip_addr_valid),    // input wire s_axis_tvalid
-   .s_axis_tready(),    // output wire s_axis_tready
-   .s_axis_tdata(set_ip_addr_data),
-   
-   .m_axis_aclk(net_clk),        // input wire m_axis_aclk
-   .m_axis_aresetn(net_aresetn),  // input wire m_axis_aresetn
-   .m_axis_tvalid(net_ip_address_valid),    // output wire m_axis_tvalid
-   .m_axis_tready(1'b1),    // input wire m_axis_tready
-   .m_axis_tdata(net_ip_address_data)      // output wire [159 : 0] m_axis_tdata
- );
- 
-axis_clock_converter_32 axis_clock_converter_board_number (
-    .s_axis_aresetn(pcie_aresetn),  // input wire s_axis_aresetn
-    .s_axis_aclk(pcie_clk),        // input wire s_axis_aclk
-    .s_axis_tvalid(set_board_number_valid),    // input wire s_axis_tvalid
-    .s_axis_tready(),    // output wire s_axis_tready
-    .s_axis_tdata(set_board_number_data),
-    
-    .m_axis_aclk(net_clk),        // input wire m_axis_aclk
-    .m_axis_aresetn(net_aresetn),  // input wire m_axis_aresetn
-    .m_axis_tvalid(net_board_number_valid),    // output wire m_axis_tvalid
-    .m_axis_tready(1'b1),    // input wire m_axis_tready
-    .m_axis_tdata(net_board_number_data)      // output wire [159 : 0] m_axis_tdata
-  );
-
-wire set_ip_addr_valid;
-wire [31:0] set_ip_addr_data;
-wire net_ip_address_valid;
-wire[31:0] net_ip_address_data;
-reg[31:0] local_ip_address;
-
-wire set_board_number_valid;
-wire[3:0] set_board_number_data;
-wire net_board_number_valid;
-wire[3:0] net_board_number_data;
-reg[3:0] board_number;
-
-always @(posedge net_clk) begin
-    if (~net_aresetn) begin
-        local_ip_address <= 32'hD1D4010B;
-        board_number <= 0;
-    end
-    else begin
-        if (net_ip_address_valid) begin
-            local_ip_address[7:0] <= net_ip_address_data[31:24];
-            local_ip_address[15:8] <= net_ip_address_data[23:16];
-            local_ip_address[23:16] <= net_ip_address_data[15:8];
-            local_ip_address[31:24] <= net_ip_address_data[7:0];
-        end
-        if (net_board_number_valid) begin
-            board_number <= net_board_number_data;
-        end
-    end
-end*/
-
-
 wire c0_init_calib_complete;
 wire c1_init_calib_complete;
 
@@ -309,9 +247,6 @@ wire pcie_aresetn;
 wire c0_ui_clk;
 (* mark_debug = "true" *)wire ddr3_calib_complete;
 wire init_calib_complete;
-//wire toeTX_compare_error, ht_compare_error, upd_compare_error;
-
-//reg rst_n_r1, rst_n_r2, rst_n_r3;
 reg reset156_25_n_r1, reset156_25_n_r2, reset156_25_n_r3;
 
 //registers for crossing clock domains (from 233MHz to 156.25MHz)
@@ -608,34 +543,8 @@ mem_driver  mem_driver_inst(
  * DMA
  */
 
-//address write
-(* mark_debug = "true" *)wire [31: 0] axil_awaddr;
-(* mark_debug = "true" *)wire  axil_awvalid;
-(* mark_debug = "true" *)wire axil_awready;
- 
-//data write
-wire [31: 0]   axil_wdata;
-wire [3: 0] axil_wstrb;
-(* mark_debug = "true" *)wire axil_wvalid;
-(* mark_debug = "true" *)wire axil_wready;
- 
-//write response (handhake)
-wire [1:0] axil_bresp;
-wire axil_bvalid;
-wire axil_bready;
- 
-//address read
-(* mark_debug = "true" *)wire [31: 0] axil_araddr;
-(* mark_debug = "true" *)wire axil_arvalid;
-(* mark_debug = "true" *)wire axil_arready;
- 
-//data read
-wire [31: 0] axil_rdata;
-wire [1:0] axil_rresp;
-(* mark_debug = "true" *)wire axil_rvalid;
-(* mark_debug = "true" *)wire axil_rready;
-
-
+//Axi Lite Control Bus
+axi_lite        axil_control();
 
 reg led_light;
 assign led[5] = pcie_aresetn; //led_light;
@@ -656,17 +565,6 @@ end
 /*
  * DMA Interface
  */
-/*wire        axis_c2h_tvalid_0;
-wire        axis_c2h_tready_0;
-wire[511:0] axis_c2h_tdata_0;
-wire[63:0]  axis_c2h_tkeep_0;
-wire        axis_c2h_tlast_0;
-
-wire        axis_h2c_tvalid_0;
-wire        axis_h2c_tready_0;
-wire[511:0] axis_h2c_tdata_0;
-wire[63:0]  axis_h2c_tkeep_0;
-wire        axis_h2c_tlast_0;*/
 
 wire        c2h_dsc_byp_load_0;
 wire        c2h_dsc_byp_ready_0;
@@ -703,32 +601,9 @@ dma_driver dma_driver_inst (
   //.msi_enable(),                                        // output wire msi_enable
   //.msi_vector_width(),                            // output wire [2 : 0] msi_vector_width
   
-  // LITE interface   
-  //-- AXI Master Write Address Channel
-  .m_axil_awaddr(axil_awaddr),              // output wire [31 : 0] m_axil_awaddr
-  .m_axil_awprot(),              // output wire [2 : 0] m_axil_awprot
-  .m_axil_awvalid(axil_awvalid),            // output wire m_axil_awvalid
-  .m_axil_awready(axil_awready),            // input wire m_axil_awready
-  //-- AXI Master Write Data Channel
-  .m_axil_wdata(axil_wdata),                // output wire [31 : 0] m_axil_wdata
-  .m_axil_wstrb(axil_wstrb),                // output wire [3 : 0] m_axil_wstrb
-  .m_axil_wvalid(axil_wvalid),              // output wire m_axil_wvalid
-  .m_axil_wready(axil_wready),              // input wire m_axil_wready
-  //-- AXI Master Write Response Channel
-  .m_axil_bvalid(axil_bvalid),              // input wire m_axil_bvalid
-  .m_axil_bresp(axil_bresp),                // input wire [1 : 0] m_axil_bresp
-  .m_axil_bready(axil_bready),              // output wire m_axil_bready
-  //-- AXI Master Read Address Channel
-  .m_axil_araddr(axil_araddr),              // output wire [31 : 0] m_axil_araddr
-  .m_axil_arprot(),              // output wire [2 : 0] m_axil_arprot
-  .m_axil_arvalid(axil_arvalid),            // output wire m_axil_arvalid
-  .m_axil_arready(axil_arready),            // input wire m_axil_arready
-  .m_axil_rdata(axil_rdata),                // input wire [31 : 0] m_axil_rdata
-  //-- AXI Master Read Data Channel
-  .m_axil_rresp(axil_rresp),                // input wire [1 : 0] m_axil_rresp
-  .m_axil_rvalid(axil_rvalid),              // input wire m_axil_rvalid
-  .m_axil_rready(axil_rready),              // output wire m_axil_rready
-  
+  // Axi Lite Control Master interface   
+  .m_axil(axil_control),
+
   // AXI Stream Interface
   .s_axis_c2h_tvalid_0(axis_dma_c2h.valid),                      // input wire s_axis_c2h_tvalid_0
   .s_axis_c2h_tready_0(axis_dma_c2h.ready),                      // output wire s_axis_c2h_tready_0
@@ -773,25 +648,7 @@ os os_inst(
     .net_aresetn(net_aresetn),
 
     //Axi Lite Control
-    .s_axil_awaddr  (axil_awaddr[31:0]),
-    //.s_axil_awprot  (),
-    .s_axil_awvalid (axil_awvalid),
-    .s_axil_awready (axil_awready),
-    .s_axil_wdata   (axil_wdata[31:0]),    // block fifo for AXI lite only 31 bits.
-    .s_axil_wstrb   (axil_wstrb[3:0]),
-    .s_axil_wvalid  (axil_wvalid),
-    .s_axil_wready  (axil_wready),
-    .s_axil_bresp   (axil_bresp),
-    .s_axil_bvalid  (axil_bvalid),
-    .s_axil_bready  (axil_bready),
-    .s_axil_araddr  (axil_araddr[31:0]),
-    //.s_axil_arprot  (),
-    .s_axil_arvalid (axil_arvalid),
-    .s_axil_arready (axil_arready),
-    .s_axil_rdata   (axil_rdata),   // block ram for AXI Lite is only 31 bits
-    .s_axil_rresp   (axil_rresp),
-    .s_axil_rvalid  (axil_rvalid),
-    .s_axil_rready  (axil_rready),
+    .s_axil_control         (axil_control),
 
     //DDR
     .ddr3_calib_complete(ddr3_calib_complete),

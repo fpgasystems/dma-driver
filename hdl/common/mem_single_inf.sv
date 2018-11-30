@@ -31,31 +31,7 @@ module mem_single_inf #(
     axi_stream.slave        s_axis_mem_write_data,
 
     /* CONTROL INTERFACE */
-    // LITE interface   
-    //-- AXI Master Write Address Channel
-    input wire[31:0]    s_axil_awaddr,
-    input wire[2:0]     s_axil_awprot,
-    input wire          s_axil_awvalid,
-    output logic        s_axil_awready,
-    //-- AXI Master Write Data Channel
-    input wire[31:0]    s_axil_wdata,
-    input wire[3:0]     s_axil_wstrb,
-    input wire          s_axil_wvalid,
-    output logic        s_axil_wready,
-    //-- AXI Master Write Response Channel
-    output logic        s_axil_bvalid,
-    output logic[1:0]   s_axil_bresp,
-    input wire          s_axil_bready,
-    //-- AXI Master Read Address Channel
-    input wire[31:0]    s_axil_araddr,
-    input wire[2:0]     s_axil_arprot,
-    input wire          s_axil_arvalid,
-    output logic        s_axil_arready,
-    output logic[31:0]  s_axil_rdata,
-    //-- AXI Master Read Data Channel
-    output logic[1:0]   s_axil_rresp,
-    output logic        s_axil_rvalid,
-    input wire          s_axil_rready,
+    axi_lite.slave      s_axil,
 
     /* DRIVER INTERFACE */
     // Slave Interface Write Address Ports
@@ -293,24 +269,9 @@ endgenerate
     .mem_aresetn(mem_aresetn),
     
      // AXI Lite Master Interface connections
-    .s_axil_awaddr  (s_axil_awaddr[31:0]),
-    .s_axil_awvalid (s_axil_awvalid),
-    .s_axil_awready (s_axil_awready),
-    .s_axil_wdata   (s_axil_wdata[31:0]),    // block fifo for AXI lite only 31 bits.
-    .s_axil_wstrb   (s_axil_wstrb[3:0]),
-    .s_axil_wvalid  (s_axil_wvalid),
-    .s_axil_wready  (s_axil_wready),
-    .s_axil_bresp   (s_axil_bresp),
-    .s_axil_bvalid  (s_axil_bvalid),
-    .s_axil_bready  (s_axil_bready),
-    .s_axil_araddr  (s_axil_araddr[31:0]),
-    .s_axil_arvalid (s_axil_arvalid),
-    .s_axil_arready (s_axil_arready),
-    .s_axil_rdata   (s_axil_rdata),   // block ram for AXI Lite is only 31 bits
-    .s_axil_rresp   (s_axil_rresp),
-    .s_axil_rvalid  (s_axil_rvalid),
-    .s_axil_rready  (s_axil_rready),
-    
+    .s_axil                         (s_axil),
+
+    // Statistics
     .write_cmd_counter              (write_cmd_counter),
     .write_word_counter             (write_word_counter),
     .write_pkg_counter              (write_pkg_counter),

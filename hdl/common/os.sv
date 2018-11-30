@@ -1,3 +1,29 @@
+/*
+ * Copyright (c) 2018, Systems Group, ETH Zurich
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ * this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ * this list of conditions and the following disclaimer in the documentation
+ * and/or other materials provided with the distribution.
+ * 3. Neither the name of the copyright holder nor the names of its contributors
+ * may be used to endorse or promote products derived from this software
+ * without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 `timescale 1ns / 1ps
 `default_nettype none
 
@@ -18,28 +44,10 @@ module os #(
     input wire      net_aresetn,
 
     //Axi Lite Control Interface
-    input  wire  [31:0] s_axil_awaddr,
-    input  wire         s_axil_awvalid,
-    output wire         s_axil_awready,
-    input  wire  [31:0] s_axil_wdata,
-    input  wire   [3:0] s_axil_wstrb,
-    input  wire         s_axil_wvalid,
-    output wire         s_axil_wready,
-    output wire   [1:0] s_axil_bresp,
-    output wire         s_axil_bvalid,
-    input  wire         s_axil_bready,
-    input  wire  [31:0] s_axil_araddr,
-    input  wire         s_axil_arvalid,
-    output wire         s_axil_arready,
-    output wire  [31:0] s_axil_rdata,
-    output wire   [1:0] s_axil_rresp,
-    output wire         s_axil_rvalid,
-    input  wire         s_axil_rready,
-
+    axi_lite.slave      s_axil_control,
+    
     //DDR
     input wire          ddr3_calib_complete,
-    //input wire[NUM_DDR_CHANNELS-1:0]                mem_clk,
-    //input wire[NUM_DDR_CHANNELS-1:0]                mem_aresetn,
     // Slave Interface Write Address Ports
     output logic [AXI_ID_WIDTH-1:0]                 m_axi_awid  [NUM_DDR_CHANNELS-1:0],
     output logic [31:0]                             m_axi_awaddr    [NUM_DDR_CHANNELS-1:0],
@@ -81,30 +89,10 @@ module os #(
     input wire[NUM_DDR_CHANNELS-1:0]                                      m_axi_rlast,
     input wire[NUM_DDR_CHANNELS-1:0]                                      m_axi_rvalid,
 
-    /*mem_cmd.master[NUM_DDR_CHANNELS-1:0]            m_axis_ddr_write_cmd,
-    mem_cmd.master[NUM_DDR_CHANNELS-1:0]            m_axis_ddr_read_cmd,
-    axi_stream.master[NUM_DDR_CHANNELS-1:0]         m_axis_ddr_write_data,
-    axi_stream.slave[NUM_DDR_CHANNELS-1:0]          s_axi_ddr_read_data,
-    mem_status.slave[NUM_DDR_CHANNELS-1:0]          s_axis_ddr_write_status,
-    mem_status.slave[NUM_DDR_CHANNELS-1:0]          s_axis_ddr_read_status,
-*/
     /* DMA */
     // AXI Stream Interface
     axi_stream.master       m_axis_dma_c2h,
-    /*output logic        m_axis_c2h_tvalid_0,
-    input wire          m_axis_c2h_tready_0,
-    //output axi_word_512 m_axis_c2h_tdata_0,
-    output logic[511:0] m_axis_c2h_tdata_0,
-    output logic[63:0]  m_axis_c2h_tkeep_0,
-    output logic        m_axis_c2h_tlast_0,*/
-
     axi_stream.slave    s_axis_dma_h2c,
-    /*input wire          s_axis_h2c_tvalid_0,
-    output logic        s_axis_h2c_tready_0,
-    //input axi_word_512  s_axis_h2c_tdata_0,
-    input wire[511:0]   s_axis_h2c_tdata_0,
-    input wire[63:0]    s_axis_h2c_tkeep_0,
-    input wire          s_axis_h2c_tlast_0,*/
 
     // Descriptor Bypass
     input wire          c2h_dsc_byp_ready_0,
@@ -124,20 +112,22 @@ module os #(
     input wire[7:0]     c2h_sts_0,
     input wire[7:0]     h2c_sts_0
 
-    /*mem_cmd.master[NUM_DDR_CHANNELS-1:0]            m_axis_dma_write_cmd,
-    mem_cmd.master[NUM_DDR_CHANNELS-1:0]            m_axis_dma_read_cmd,
-    axi_stream.master[NUM_DDR_CHANNELS-1:0]         m_axis_dma_write_data,
-    axi_stream.slave[NUM_DDR_CHANNELS-1:0]          s_axi_dma_read_data,*/
-
     //Network
 
 
 
 );
 
+// Axi Lite Control Signals
+localparam NUM_AXIL_MODULES = 4;
+localparam AxilPortUserRole = 0; //TODO enum
+localparam AxilPortDMA = 1;
+localparam AxilPortDDR0 = 2;
+localparam AxilPortDDR1 = 3;
+
+axi_lite        axil_to_modules[NUM_AXIL_MODULES]();
 
 // Memory Signals
-
 axis_mem_cmd    axis_mem_read_cmd[NUM_DDR_CHANNELS]();
 axi_stream      axis_mem_read_data[NUM_DDR_CHANNELS]();
 axis_mem_status axis_mem_read_status[NUM_DDR_CHANNELS](); 
@@ -145,6 +135,13 @@ axis_mem_status axis_mem_read_status[NUM_DDR_CHANNELS]();
 axis_mem_cmd    axis_mem_write_cmd[NUM_DDR_CHANNELS]();
 axi_stream      axis_mem_write_data[NUM_DDR_CHANNELS]();
 axis_mem_status axis_mem_write_status[NUM_DDR_CHANNELS]();
+
+// DMA Signals
+axis_mem_cmd    axis_dma_read_cmd();
+axis_mem_cmd    axis_dma_write_cmd();
+axi_stream      axis_dma_read_data();
+axi_stream      axis_dma_write_data();
+
 
 /*
  * User Role
@@ -158,30 +155,7 @@ benchmark_role user_role(
 
     /* CONTROL INTERFACE */
     // LITE interface
-    //-- AXI Master Write Address Channel
-    .s_axil_awaddr(axil_to_modules_awaddr[AxilPortUserRole]),              // output wire [31 : 0] m_axil_awaddr
-    .s_axil_awprot(),              // output wire [2 : 0] m_axil_awprot
-    .s_axil_awvalid(axil_to_modules_awvalid[AxilPortUserRole]),            // output wire m_axil_awvalid
-    .s_axil_awready(axil_to_modules_awready[AxilPortUserRole]),            // input wire m_axil_awready
-    //-- AXI Master Write Data Channel
-    .s_axil_wdata(axil_to_modules_wdata[AxilPortUserRole]),                // output wire [31 : 0] m_axil_wdata
-    .s_axil_wstrb(axil_to_modules_wstrb[AxilPortUserRole]),                // output wire [3 : 0] m_axil_wstrb
-    .s_axil_wvalid(axil_to_modules_wvalid[AxilPortUserRole]),              // output wire m_axil_wvalid
-    .s_axil_wready(axil_to_modules_wready[AxilPortUserRole]),              // input wire m_axil_wready
-    //-- AXI Master Write Response Channel
-    .s_axil_bvalid(axil_to_modules_bvalid[AxilPortUserRole]),              // input wire m_axil_bvalid
-    .s_axil_bresp(axil_to_modules_bresp[AxilPortUserRole]),                // input wire [1 : 0] m_axil_bresp
-    .s_axil_bready(axil_to_modules_bready[AxilPortUserRole]),              // output wire m_axil_bready
-    //-- AXI Master Read Address Channel
-    .s_axil_araddr(axil_to_modules_araddr[AxilPortUserRole]),              // output wire [31 : 0] m_axil_araddr
-    .s_axil_arprot(),              // output wire [2 : 0] m_axil_arprot
-    .s_axil_arvalid(axil_to_modules_arvalid[AxilPortUserRole]),            // output wire m_axil_arvalid
-    .s_axil_arready(axil_to_modules_arready[AxilPortUserRole]),            // input wire m_axil_arready
-    .s_axil_rdata(axil_to_modules_rdata[AxilPortUserRole]),                // input wire [31 : 0] m_axil_rdata
-    //-- AXI Master Read Data Channel
-    .s_axil_rresp(axil_to_modules_rresp[AxilPortUserRole]),                // input wire [1 : 0] m_axil_rresp
-    .s_axil_rvalid(axil_to_modules_rvalid[AxilPortUserRole]),              // input wire m_axil_rvalid
-    .s_axil_rready(axil_to_modules_rready[AxilPortUserRole]),              // output wire m_axil_rready
+    .s_axil         (axil_to_modules[AxilPortUserRole]),
 
     /* MEMORY INTERFACE */
     .m_axis_mem_read_cmd(axis_mem_read_cmd),
@@ -191,191 +165,14 @@ benchmark_role user_role(
     .s_axis_mem_read_status(axis_mem_read_status),
     .s_axis_mem_write_status(axis_mem_write_status),
 
-    /*.m_axis_mem0_read_cmd_tvalid(axis_user_read_mem0_cmd_tvalid),
-    .m_axis_mem0_read_cmd_tready(axis_user_read_mem0_cmd_tready),
-    .m_axis_mem0_read_cmd_tdata(axis_user_read_mem0_cmd_tdata),
-    .m_axis_mem0_write_cmd_tvalid(axis_user_write_mem0_cmd_tvalid),
-    .m_axis_mem0_write_cmd_tready(axis_user_write_mem0_cmd_tready),
-    .m_axis_mem0_write_cmd_tdata(axis_user_write_mem0_cmd_tdata),
-
-
-    .s_axis_mem0_read_data_tvalid(axis_user_read_mem0_data_tvalid),
-    .s_axis_mem0_read_data_tready(axis_user_read_mem0_data_tready),
-    .s_axis_mem0_read_data_tdata(axis_user_read_mem0_data_tdata),
-    .s_axis_mem0_read_data_tkeep(axis_user_read_mem0_data_tkeep),
-    .s_axis_mem0_read_data_tlast(axis_user_read_mem0_data_tlast),
-
-
-    .m_axis_mem0_write_data_tvalid(axis_user_write_mem0_data_tvalid),
-    .m_axis_mem0_write_data_tready(axis_user_write_mem0_data_tready),
-    .m_axis_mem0_write_data_tdata(axis_user_write_mem0_data_tdata),
-    .m_axis_mem0_write_data_tkeep(axis_user_write_mem0_data_tkeep),
-    .m_axis_mem0_write_data_tlast(axis_user_write_mem0_data_tlast),
-
-    .s_axis_mem0_write_sts_tvalid(axis_user_write_mem0_status_tvalid),
-    .s_axis_mem0_write_sts_tready(axis_user_write_mem0_status_tready),
-    .s_axis_mem0_write_sts_tdata(axis_user_write_mem0_status_tdata),
-
-
-    .m_axis_mem1_read_cmd_tvalid(axis_user_read_mem1_cmd_tvalid),
-    .m_axis_mem1_read_cmd_tready(axis_user_read_mem1_cmd_tready),
-    .m_axis_mem1_read_cmd_tdata(axis_user_read_mem1_cmd_tdata),
-    .m_axis_mem1_write_cmd_tvalid(axis_user_write_mem1_cmd_tvalid),
-    .m_axis_mem1_write_cmd_tready(axis_user_write_mem1_cmd_tready),
-    .m_axis_mem1_write_cmd_tdata(axis_user_write_mem1_cmd_tdata),
-
-
-    .s_axis_mem1_read_data_tvalid(axis_user_read_mem1_data_tvalid),
-    .s_axis_mem1_read_data_tready(axis_user_read_mem1_data_tready),
-    .s_axis_mem1_read_data_tdata(axis_user_read_mem1_data_tdata),
-    .s_axis_mem1_read_data_tkeep(axis_user_read_mem1_data_tkeep),
-    .s_axis_mem1_read_data_tlast(axis_user_read_mem1_data_tlast),
-
-
-    .m_axis_mem1_write_data_tvalid(axis_user_write_mem1_data_tvalid),
-    .m_axis_mem1_write_data_tready(axis_user_write_mem1_data_tready),
-    .m_axis_mem1_write_data_tdata(axis_user_write_mem1_data_tdata),
-    .m_axis_mem1_write_data_tkeep(axis_user_write_mem1_data_tkeep),
-    .m_axis_mem1_write_data_tlast(axis_user_write_mem1_data_tlast),
-
-    .s_axis_mem1_write_sts_tvalid(axis_user_write_mem1_status_tvalid),
-    .s_axis_mem1_write_sts_tready(axis_user_write_mem1_status_tready),
-    .s_axis_mem1_write_sts_tdata(axis_user_write_mem1_status_tdata),*/
-
     /* DMA INTERFACE */
-    .m_axis_dma_read_cmd_tvalid(axis_dma_read_cmd_tvalid),
-    .m_axis_dma_read_cmd_tready(axis_dma_read_cmd_tready),
-    .m_axis_dma_read_cmd_tdata(axis_dma_read_cmd_tdata),
-    .m_axis_dma_write_cmd_tvalid(axis_dma_write_cmd_tvalid),
-    .m_axis_dma_write_cmd_tready(axis_dma_write_cmd_tready),
-    .m_axis_dma_write_cmd_tdata(axis_dma_write_cmd_tdata),
+    .m_axis_dma_read_cmd    (axis_dma_read_cmd),
+    .m_axis_dma_write_cmd   (axis_dma_write_cmd),
 
-    .s_axis_dma_read_data_tvalid(axis_dma_read_data_tvalid),
-    .s_axis_dma_read_data_tready(axis_dma_read_data_tready),
-    .s_axis_dma_read_data_tdata(axis_dma_read_data_tdata),
-    .s_axis_dma_read_data_tkeep(axis_dma_read_data_tkeep),
-    .s_axis_dma_read_data_tlast(axis_dma_read_data_tlast),
-
-    .m_axis_dma_write_data_tvalid(axis_dma_write_data_tvalid),
-    .m_axis_dma_write_data_tready(axis_dma_write_data_tready),
-    .m_axis_dma_write_data_tdata(axis_dma_write_data_tdata),
-    .m_axis_dma_write_data_tkeep(axis_dma_write_data_tkeep),
-    .m_axis_dma_write_data_tlast(axis_dma_write_data_tlast)
+    .s_axis_dma_read_data   (axis_dma_read_data),
+    .m_axis_dma_write_data  (axis_dma_write_data)
 
 );
-
-//Axi Lite Signals
-localparam AxilPortUserRole = 0; //TODO enum
-localparam AxilPortDMA = 1;
-localparam AxilPortDDR0 = 2;
-localparam AxilPortDDR1 = 3;
-
-localparam NUM_AXIL_MODULES = 4;
-wire [31: 0] axil_to_modules_awaddr    [NUM_AXIL_MODULES-1:0];
-(* mark_debug = "true" *)wire[NUM_AXIL_MODULES-1:0]  axil_to_modules_awvalid;
-(* mark_debug = "true" *)wire[NUM_AXIL_MODULES-1:0] axil_to_modules_awready;
- 
-//data write
-wire [31: 0]   axil_to_modules_wdata    [NUM_AXIL_MODULES-1:0];
-wire [3: 0] axil_to_modules_wstrb   [NUM_AXIL_MODULES-1:0];
-(* mark_debug = "true" *)wire[NUM_AXIL_MODULES-1:0] axil_to_modules_wvalid;
-(* mark_debug = "true" *)wire[NUM_AXIL_MODULES-1:0] axil_to_modules_wready;
- 
-//write response (handhake)
-wire [1:0] axil_to_modules_bresp    [NUM_AXIL_MODULES-1:0];
-wire[NUM_AXIL_MODULES-1:0] axil_to_modules_bvalid;
-wire[NUM_AXIL_MODULES-1:0] axil_to_modules_bready;
- 
-//address read
-wire [31: 0] axil_to_modules_araddr    [NUM_AXIL_MODULES-1:0];
-(* mark_debug = "true" *)wire[NUM_AXIL_MODULES-1:0] axil_to_modules_arvalid;
-(* mark_debug = "true" *)wire[NUM_AXIL_MODULES-1:0] axil_to_modules_arready;
- 
-//data read
-wire [31: 0] axil_to_modules_rdata  [NUM_AXIL_MODULES-1:0];
-wire [1:0] axil_to_modules_rresp    [NUM_AXIL_MODULES-1:0];
-(* mark_debug = "true" *)wire[NUM_AXIL_MODULES-1:0] axil_to_modules_rvalid;
-(* mark_debug = "true" *)wire[NUM_AXIL_MODULES-1:0] axil_to_modules_rready;
-
-
-
-
-/*(* mark_debug = "true" *)wire        axis_user_read_mem0_cmd_tvalid;
-(* mark_debug = "true" *)wire        axis_user_read_mem0_cmd_tready;
-wire[95:0]  axis_user_read_mem0_cmd_tdata;
-(* mark_debug = "true" *)wire        axis_user_write_mem0_cmd_tvalid;
-(* mark_debug = "true" *)wire        axis_user_write_mem0_cmd_tready;
-wire[95:0]  axis_user_write_mem0_cmd_tdata;
-
-(* mark_debug = "true" *)wire        axis_user_read_mem0_data_tvalid; //TODO switch mem0 and read
-(* mark_debug = "true" *)wire        axis_user_read_mem0_data_tready;
-wire[511:0] axis_user_read_mem0_data_tdata;
-wire[63:0]  axis_user_read_mem0_data_tkeep;
-(* mark_debug = "true" *)wire        axis_user_read_mem0_data_tlast;
-
-(* mark_debug = "true" *)wire        axis_user_write_mem0_data_tvalid; //TODO switch mem0 and read
-(* mark_debug = "true" *)wire        axis_user_write_mem0_data_tready;
-wire[511:0] axis_user_write_mem0_data_tdata;
-wire[63:0]  axis_user_write_mem0_data_tkeep;
-wire        axis_user_write_mem0_data_tlast;
-
-(* mark_debug = "true" *)wire        axis_user_write_mem0_status_tvalid;
-(* mark_debug = "true" *)wire        axis_user_write_mem0_status_tready;
-wire[7:0]  axis_user_write_mem0_status_tdata;
-
-(* mark_debug = "true" *)wire        axis_user_read_mem1_cmd_tvalid;
-(* mark_debug = "true" *)wire        axis_user_read_mem1_cmd_tready;
-wire[95:0]  axis_user_read_mem1_cmd_tdata;
-(* mark_debug = "true" *)wire        axis_user_write_mem1_cmd_tvalid;
-(* mark_debug = "true" *)wire        axis_user_write_mem1_cmd_tready;
-wire[95:0]  axis_user_write_mem1_cmd_tdata;
-
-(* mark_debug = "true" *)wire        axis_user_read_mem1_data_tvalid; //TODO switch mem0 and read
-(* mark_debug = "true" *)wire        axis_user_read_mem1_data_tready;
-wire[511:0] axis_user_read_mem1_data_tdata;
-wire[63:0]  axis_user_read_mem1_data_tkeep;
-wire        axis_user_read_mem1_data_tlast;
-
-(* mark_debug = "true" *)wire        axis_user_write_mem1_data_tvalid; //TODO switch mem0 and read
-(* mark_debug = "true" *)wire        axis_user_write_mem1_data_tready;
-wire[511:0] axis_user_write_mem1_data_tdata;
-wire[63:0]  axis_user_write_mem1_data_tkeep;
-wire        axis_user_write_mem1_data_tlast;
-
-(* mark_debug = "true" *)wire        axis_user_write_mem1_status_tvalid;
-(* mark_debug = "true" *)wire        axis_user_write_mem1_status_tready;
-wire[7:0]  axis_user_write_mem1_status_tdata;
-*/
-
-
-//DMA Signals
-
-(* mark_debug = "true" *)wire        axis_dma_read_cmd_tvalid;
-(* mark_debug = "true" *)wire        axis_dma_read_cmd_tready;
-wire[95:0]  axis_dma_read_cmd_tdata;
-
-wire[47:0] axis_dma_read_cmd_addr;
-assign axis_dma_read_cmd_addr = axis_dma_read_cmd_tdata[47:0];
-
-
-(* mark_debug = "true" *)wire        axis_dma_write_cmd_tvalid;
-(* mark_debug = "true" *)wire        axis_dma_write_cmd_tready;
-wire[95:0]  axis_dma_write_cmd_tdata;
-
-wire[47:0] axis_dma_write_cmd_addr;
-assign axis_dma_write_cmd_addr = axis_dma_write_cmd_tdata[47:0];
-
-wire        axis_dma_write_data_tvalid;
-wire        axis_dma_write_data_tready;
-wire[511:0] axis_dma_write_data_tdata;
-wire[63:0]  axis_dma_write_data_tkeep;
-wire        axis_dma_write_data_tlast;
-
-wire        axis_dma_read_data_tvalid;
-wire        axis_dma_read_data_tready;
-wire[511:0] axis_dma_read_data_tdata;
-wire[63:0]  axis_dma_read_data_tkeep;
-wire        axis_dma_read_data_tlast;
 
 
 /*
@@ -398,67 +195,21 @@ mem_single_inf  mem_inf_inst0(
 /* USER INTERFACE */
 //memory read commands
 .s_axis_mem_read_cmd(axis_mem_read_cmd[DDR_CHANNEL0]),
-/*.s_axis_mem_read_cmd_tvalid(axis_user_read_mem0_cmd_tvalid),
-.s_axis_mem_read_cmd_tready(axis_user_read_mem0_cmd_tready),
-.s_axis_mem_read_cmd_tdata(axis_user_read_mem0_cmd_tdata),*/
 //memory read status
 .m_axis_mem_read_status(axis_mem_read_status[DDR_CHANNEL0]),
-/*.m_axis_mem_read_sts_tvalid(),
-.m_axis_mem_read_sts_tready(1'b1),
-.m_axis_mem_read_sts_tdata(),*/
 //memory read stream
 .m_axis_mem_read_data(axis_mem_read_data[DDR_CHANNEL0]),
-/*.m_axis_mem_read_tvalid(axis_user_read_mem0_data_tvalid),
-.m_axis_mem_read_tready(axis_user_read_mem0_data_tready),
-.m_axis_mem_read_tdata(axis_user_read_mem0_data_tdata),
-.m_axis_mem_read_tkeep(axis_user_read_mem0_data_tkeep),
-.m_axis_mem_read_tlast(axis_user_read_mem0_data_tlast),*/
 
 //memory write commands
 .s_axis_mem_write_cmd(axis_mem_write_cmd[DDR_CHANNEL0]),
-/*.s_axis_mem_write_cmd_tvalid(axis_user_write_mem0_cmd_tvalid),
-.s_axis_mem_write_cmd_tready(axis_user_write_mem0_cmd_tready),
-.s_axis_mem_write_cmd_tdata(axis_user_write_mem0_cmd_tdata),*/
 //memory rite status
 .m_axis_mem_write_status(axis_mem_write_status[DDR_CHANNEL0]),
-/*.m_axis_mem_write_sts_tvalid(axis_user_write_mem0_status_tvalid),
-.m_axis_mem_write_sts_tready(axis_user_write_mem0_status_tready),
-.m_axis_mem_write_sts_tdata(axis_user_write_mem0_status_tdata),*/
 //memory write stream
 .s_axis_mem_write_data(axis_mem_write_data[DDR_CHANNEL0]),
-/*.s_axis_mem_write_tvalid(axis_user_write_mem0_data_tvalid),
-.s_axis_mem_write_tready(axis_user_write_mem0_data_tready),
-.s_axis_mem_write_tdata(axis_user_write_mem0_data_tdata),
-.s_axis_mem_write_tkeep(axis_user_write_mem0_data_tkeep),
-.s_axis_mem_write_tlast(axis_user_write_mem0_data_tlast),*/
 
 /* CONTROL INTERFACE */
 // LITE interface
-//-- AXI Master Write Address Channel
-.s_axil_awaddr(axil_to_modules_awaddr[AxilPortDDR0]),              // output wire [31 : 0] m_axil_awaddr
-.s_axil_awprot(),              // output wire [2 : 0] m_axil_awprot
-.s_axil_awvalid(axil_to_modules_awvalid[AxilPortDDR0]),            // output wire m_axil_awvalid
-.s_axil_awready(axil_to_modules_awready[AxilPortDDR0]),            // input wire m_axil_awready
-//-- AXI Master Write Data Channel
-.s_axil_wdata(axil_to_modules_wdata[AxilPortDDR0]),                // output wire [31 : 0] m_axil_wdata
-.s_axil_wstrb(axil_to_modules_wstrb[AxilPortDDR0]),                // output wire [3 : 0] m_axil_wstrb
-.s_axil_wvalid(axil_to_modules_wvalid[AxilPortDDR0]),              // output wire m_axil_wvalid
-.s_axil_wready(axil_to_modules_wready[AxilPortDDR0]),              // input wire m_axil_wready
-//-- AXI Master Write Response Channel
-.s_axil_bvalid(axil_to_modules_bvalid[AxilPortDDR0]),              // input wire m_axil_bvalid
-.s_axil_bresp(axil_to_modules_bresp[AxilPortDDR0]),                // input wire [1 : 0] m_axil_bresp
-.s_axil_bready(axil_to_modules_bready[AxilPortDDR0]),              // output wire m_axil_bready
-//-- AXI Master Read Address Channel
-.s_axil_araddr(axil_to_modules_araddr[AxilPortDDR0]),              // output wire [31 : 0] m_axil_araddr
-.s_axil_arprot(),              // output wire [2 : 0] m_axil_arprot
-.s_axil_arvalid(axil_to_modules_arvalid[AxilPortDDR0]),            // output wire m_axil_arvalid
-.s_axil_arready(axil_to_modules_arready[AxilPortDDR0]),            // input wire m_axil_arready
-.s_axil_rdata(axil_to_modules_rdata[AxilPortDDR0]),                // input wire [31 : 0] m_axil_rdata
-//-- AXI Master Read Data Channel
-.s_axil_rresp(axil_to_modules_rresp[AxilPortDDR0]),                // input wire [1 : 0] m_axil_rresp
-.s_axil_rvalid(axil_to_modules_rvalid[AxilPortDDR0]),              // input wire m_axil_rvalid
-.s_axil_rready(axil_to_modules_rready[AxilPortDDR0]),              // output wire m_axil_rready
-
+.s_axil(axil_to_modules[AxilPortDDR0]),
 
 /* DRIVER INTERFACE */
 .m_axi_awid(m_axi_awid[DDR_CHANNEL0]),
@@ -513,98 +264,21 @@ mem_single_inf  mem_inf_inst1(
 
 /* USER INTERFACE */
 .s_axis_mem_read_cmd(axis_mem_read_cmd[DDR_CHANNEL1]),
-/*.s_axis_mem_read_cmd_tvalid(axis_user_read_mem0_cmd_tvalid),
-.s_axis_mem_read_cmd_tready(axis_user_read_mem0_cmd_tready),
-.s_axis_mem_read_cmd_tdata(axis_user_read_mem0_cmd_tdata),*/
 //memory read status
 .m_axis_mem_read_status(axis_mem_read_status[DDR_CHANNEL1]),
-/*.m_axis_mem_read_sts_tvalid(),
-.m_axis_mem_read_sts_tready(1'b1),
-.m_axis_mem_read_sts_tdata(),*/
 //memory read stream
 .m_axis_mem_read_data(axis_mem_read_data[DDR_CHANNEL1]),
-/*.m_axis_mem_read_tvalid(axis_user_read_mem0_data_tvalid),
-.m_axis_mem_read_tready(axis_user_read_mem0_data_tready),
-.m_axis_mem_read_tdata(axis_user_read_mem0_data_tdata),
-.m_axis_mem_read_tkeep(axis_user_read_mem0_data_tkeep),
-.m_axis_mem_read_tlast(axis_user_read_mem0_data_tlast),*/
 
 //memory write commands
 .s_axis_mem_write_cmd(axis_mem_write_cmd[DDR_CHANNEL1]),
-/*.s_axis_mem_write_cmd_tvalid(axis_user_write_mem0_cmd_tvalid),
-.s_axis_mem_write_cmd_tready(axis_user_write_mem0_cmd_tready),
-.s_axis_mem_write_cmd_tdata(axis_user_write_mem0_cmd_tdata),*/
 //memory rite status
 .m_axis_mem_write_status(axis_mem_write_status[DDR_CHANNEL1]),
-/*.m_axis_mem_write_sts_tvalid(axis_user_write_mem0_status_tvalid),
-.m_axis_mem_write_sts_tready(axis_user_write_mem0_status_tready),
-.m_axis_mem_write_sts_tdata(axis_user_write_mem0_status_tdata),*/
 //memory write stream
 .s_axis_mem_write_data(axis_mem_write_data[DDR_CHANNEL1]),
-/*.s_axis_mem_write_tvalid(axis_user_write_mem0_data_tvalid),
-.s_axis_mem_write_tready(axis_user_write_mem0_data_tready),
-.s_axis_mem_write_tdata(axis_user_write_mem0_data_tdata),
-.s_axis_mem_write_tkeep(axis_user_write_mem0_data_tkeep),
-.s_axis_mem_write_tlast(axis_user_write_mem0_data_tlast),*/
-
-//memory read commands
-/*.s_axis_mem_read_cmd_tvalid(axis_user_read_mem1_cmd_tvalid),
-.s_axis_mem_read_cmd_tready(axis_user_read_mem1_cmd_tready),
-.s_axis_mem_read_cmd_tdata(axis_user_read_mem1_cmd_tdata),
-//memory read status
-.m_axis_mem_read_sts_tvalid(),
-.m_axis_mem_read_sts_tready(1'b1),
-.m_axis_mem_read_sts_tdata(),
-//memory read stream
-.m_axis_mem_read_tvalid(axis_user_read_mem1_data_tvalid),
-.m_axis_mem_read_tready(axis_user_read_mem1_data_tready),
-.m_axis_mem_read_tdata(axis_user_read_mem1_data_tdata),
-.m_axis_mem_read_tkeep(axis_user_read_mem1_data_tkeep),
-.m_axis_mem_read_tlast(axis_user_read_mem1_data_tlast),
-
-//memory write commands
-.s_axis_mem_write_cmd_tvalid(axis_user_write_mem1_cmd_tvalid),
-.s_axis_mem_write_cmd_tready(axis_user_write_mem1_cmd_tready),
-.s_axis_mem_write_cmd_tdata(axis_user_write_mem1_cmd_tdata),
-//memory rite status
-.m_axis_mem_write_sts_tvalid(axis_user_write_mem1_status_tvalid),
-.m_axis_mem_write_sts_tready(axis_user_write_mem1_status_tready),
-.m_axis_mem_write_sts_tdata(axis_user_write_mem1_status_tdata),
-//memory write stream
-.s_axis_mem_write_tvalid(axis_user_write_mem1_data_tvalid),
-.s_axis_mem_write_tready(axis_user_write_mem1_data_tready),
-.s_axis_mem_write_tdata(axis_user_write_mem1_data_tdata),
-.s_axis_mem_write_tkeep(axis_user_write_mem1_data_tkeep),
-.s_axis_mem_write_tlast(axis_user_write_mem1_data_tlast),*/
 
 /* CONTROL INTERFACE */
 // LITE interface
-//-- AXI Master Write Address Channel
-.s_axil_awaddr(axil_to_modules_awaddr[AxilPortDDR1]),              // output wire [31 : 0] m_axil_awaddr
-.s_axil_awprot(),              // output wire [2 : 0] m_axil_awprot
-.s_axil_awvalid(axil_to_modules_awvalid[AxilPortDDR1]),            // output wire m_axil_awvalid
-.s_axil_awready(axil_to_modules_awready[AxilPortDDR1]),            // input wire m_axil_awready
-//-- AXI Master Write Data Channel
-.s_axil_wdata(axil_to_modules_wdata[AxilPortDDR1]),                // output wire [31 : 0] m_axil_wdata
-.s_axil_wstrb(axil_to_modules_wstrb[AxilPortDDR1]),                // output wire [3 : 0] m_axil_wstrb
-.s_axil_wvalid(axil_to_modules_wvalid[AxilPortDDR1]),              // output wire m_axil_wvalid
-.s_axil_wready(axil_to_modules_wready[AxilPortDDR1]),              // input wire m_axil_wready
-//-- AXI Master Write Response Channel
-.s_axil_bvalid(axil_to_modules_bvalid[AxilPortDDR1]),              // input wire m_axil_bvalid
-.s_axil_bresp(axil_to_modules_bresp[AxilPortDDR1]),                // input wire [1 : 0] m_axil_bresp
-.s_axil_bready(axil_to_modules_bready[AxilPortDDR1]),              // output wire m_axil_bready
-//-- AXI Master Read Address Channel
-.s_axil_araddr(axil_to_modules_araddr[AxilPortDDR1]),              // output wire [31 : 0] m_axil_araddr
-.s_axil_arprot(),              // output wire [2 : 0] m_axil_arprot
-.s_axil_arvalid(axil_to_modules_arvalid[AxilPortDDR1]),            // output wire m_axil_arvalid
-.s_axil_arready(axil_to_modules_arready[AxilPortDDR1]),            // input wire m_axil_arready
-.s_axil_rdata(axil_to_modules_rdata[AxilPortDDR1]),                // input wire [31 : 0] m_axil_rdata
-//-- AXI Master Read Data Channel
-.s_axil_rresp(axil_to_modules_rresp[AxilPortDDR1]),                // input wire [1 : 0] m_axil_rresp
-.s_axil_rvalid(axil_to_modules_rvalid[AxilPortDDR1]),              // input wire m_axil_rvalid
-.s_axil_rready(axil_to_modules_rready[AxilPortDDR1]),              // output wire m_axil_rready
-
-
+.s_axil(axil_to_modules[AxilPortDDR1]),
 
 /* DRIVER INTERFACE */
 .m_axi_awid(m_axi_awid[DDR_CHANNEL1]),
@@ -655,27 +329,6 @@ mem_single_inf  mem_inf_inst1(
 /*
  * DMA Interface
  */
-/*wire        axis_c2h_tvalid_0;
-wire        axis_c2h_tready_0;
-wire[511:0] axis_c2h_tdata_0;
-wire[63:0]  axis_c2h_tkeep_0;
-wire        axis_c2h_tlast_0;
-
-wire        axis_h2c_tvalid_0;
-wire        axis_h2c_tready_0;
-wire[511:0] axis_h2c_tdata_0;
-wire[63:0]  axis_h2c_tkeep_0;
-wire        axis_h2c_tlast_0;
-
-wire        c2h_dsc_byp_load_0;
-wire        c2h_dsc_byp_ready_0;
-wire[63:0]  c2h_dsc_byp_addr_0;
-wire[31:0]  c2h_dsc_byp_len_0;
-
-wire        h2c_dsc_byp_load_0;
-wire        h2c_dsc_byp_ready_0;
-wire[63:0]  h2c_dsc_byp_addr_0;
-wire[31:0]  h2c_dsc_byp_len_0;*/
 
 dma_inf dma_interface (
     .pcie_clk(pcie_clk),
@@ -684,64 +337,19 @@ dma_inf dma_interface (
     .user_aresetn(net_aresetn),
 
     /* USER INTERFACE */
-    .s_axis_dma_read_cmd_tvalid     (axis_dma_read_cmd_tvalid),
-    .s_axis_dma_read_cmd_tready     (axis_dma_read_cmd_tready),
-    .s_axis_dma_read_cmd_tdata      (axis_dma_read_cmd_tdata),
-    .s_axis_dma_write_cmd_tvalid    (axis_dma_write_cmd_tvalid),
-    .s_axis_dma_write_cmd_tready    (axis_dma_write_cmd_tready),
-    .s_axis_dma_write_cmd_tdata     (axis_dma_write_cmd_tdata),
+    .s_axis_dma_read_cmd            (axis_dma_read_cmd),
+    .s_axis_dma_write_cmd           (axis_dma_write_cmd),
 
-    .m_axis_dma_read_data_tvalid    (axis_dma_read_data_tvalid),
-    .m_axis_dma_read_data_tready    (axis_dma_read_data_tready),
-    .m_axis_dma_read_data_tdata     (axis_dma_read_data_tdata),
-    .m_axis_dma_read_data_tkeep     (axis_dma_read_data_tkeep),
-    .m_axis_dma_read_data_tlast     (axis_dma_read_data_tlast),
-
-    .s_axis_dma_write_data_tvalid   (axis_dma_write_data_tvalid),
-    .s_axis_dma_write_data_tready   (axis_dma_write_data_tready),
-    .s_axis_dma_write_data_tdata    (axis_dma_write_data_tdata),
-    .s_axis_dma_write_data_tkeep    (axis_dma_write_data_tkeep),
-    .s_axis_dma_write_data_tlast    (axis_dma_write_data_tlast),
-
+    .m_axis_dma_read_data           (axis_dma_read_data),
+    .s_axis_dma_write_data          (axis_dma_write_data),
 
     /* DRIVER INTERFACE */
-    // LITE interface
-    //-- AXI Master Write Address Channel
-    .s_axil_awaddr(axil_to_modules_awaddr[AxilPortDMA]),              // output wire [31 : 0] m_axil_awaddr
-    .s_axil_awprot(),              // output wire [2 : 0] m_axil_awprot
-    .s_axil_awvalid(axil_to_modules_awvalid[AxilPortDMA]),            // output wire m_axil_awvalid
-    .s_axil_awready(axil_to_modules_awready[AxilPortDMA]),            // input wire m_axil_awready
-    //-- AXI Master Write Data Channel
-    .s_axil_wdata(axil_to_modules_wdata[AxilPortDMA]),                // output wire [31 : 0] m_axil_wdata
-    .s_axil_wstrb(axil_to_modules_wstrb[AxilPortDMA]),                // output wire [3 : 0] m_axil_wstrb
-    .s_axil_wvalid(axil_to_modules_wvalid[AxilPortDMA]),              // output wire m_axil_wvalid
-    .s_axil_wready(axil_to_modules_wready[AxilPortDMA]),              // input wire m_axil_wready
-    //-- AXI Master Write Response Channel
-    .s_axil_bvalid(axil_to_modules_bvalid[AxilPortDMA]),              // input wire m_axil_bvalid
-    .s_axil_bresp(axil_to_modules_bresp[AxilPortDMA]),                // input wire [1 : 0] m_axil_bresp
-    .s_axil_bready(axil_to_modules_bready[AxilPortDMA]),              // output wire m_axil_bready
-    //-- AXI Master Read Address Channel
-    .s_axil_araddr(axil_to_modules_araddr[AxilPortDMA]),              // output wire [31 : 0] m_axil_araddr
-    .s_axil_arprot(),              // output wire [2 : 0] m_axil_arprot
-    .s_axil_arvalid(axil_to_modules_arvalid[AxilPortDMA]),            // output wire m_axil_arvalid
-    .s_axil_arready(axil_to_modules_arready[AxilPortDMA]),            // input wire m_axil_arready
-    .s_axil_rdata(axil_to_modules_rdata[AxilPortDMA]),                // input wire [31 : 0] m_axil_rdata
-    //-- AXI Master Read Data Channel
-    .s_axil_rresp(axil_to_modules_rresp[AxilPortDMA]),                // input wire [1 : 0] m_axil_rresp
-    .s_axil_rvalid(axil_to_modules_rvalid[AxilPortDMA]),              // input wire m_axil_rvalid
-    .s_axil_rready(axil_to_modules_rready[AxilPortDMA]),              // output wire m_axil_rready
-    
-    .m_axis_c2h_tvalid_0(m_axis_dma_c2h.valid),
-    .m_axis_c2h_tready_0(m_axis_dma_c2h.ready),
-    .m_axis_c2h_tdata_0(m_axis_dma_c2h.data),
-    .m_axis_c2h_tkeep_0(m_axis_dma_c2h.keep),
-    .m_axis_c2h_tlast_0(m_axis_dma_c2h.last),
+    // Control interface
+    .s_axil(axil_to_modules[AxilPortDMA]),
 
-    .s_axis_h2c_tvalid_0(s_axis_dma_h2c.valid),
-    .s_axis_h2c_tready_0(s_axis_dma_h2c.ready),
-    .s_axis_h2c_tdata_0(s_axis_dma_h2c.data),
-    .s_axis_h2c_tkeep_0(s_axis_dma_h2c.keep),
-    .s_axis_h2c_tlast_0(s_axis_dma_h2c.last),
+    // Data
+    .m_axis_c2h_data(m_axis_dma_c2h),
+    .s_axis_h2c_data(s_axis_dma_h2c),
 
     .c2h_dsc_byp_load_0(c2h_dsc_byp_load_0),
     .c2h_dsc_byp_ready_0(c2h_dsc_byp_ready_0),
@@ -762,49 +370,12 @@ dma_inf dma_interface (
  /*
  * Axi Lite Controller Interconnect
  */
-//TODO add prot signals??
  axil_interconnect_done_right axi_controller_interconnect_inst (
     .aclk(pcie_clk),
     .aresetn(pcie_aresetn),
-    .s_axil_awaddr  (s_axil_awaddr[31:0]),
-    .s_axil_awprot  (),
-    .s_axil_awvalid (s_axil_awvalid),
-    .s_axil_awready (s_axil_awready),
-    .s_axil_wdata   (s_axil_wdata[31:0]),    // block fifo for AXI lite only 31 bits.
-    .s_axil_wstrb   (s_axil_wstrb[3:0]),
-    .s_axil_wvalid  (s_axil_wvalid),
-    .s_axil_wready  (s_axil_wready),
-    .s_axil_bresp   (s_axil_bresp),
-    .s_axil_bvalid  (s_axil_bvalid),
-    .s_axil_bready  (s_axil_bready),
-    .s_axil_araddr  (s_axil_araddr[31:0]),
-    .s_axil_arprot  (),
-    .s_axil_arvalid (s_axil_arvalid),
-    .s_axil_arready (s_axil_arready),
-    .s_axil_rdata   (s_axil_rdata),   // block ram for AXI Lite is only 31 bits
-    .s_axil_rresp   (s_axil_rresp),
-    .s_axil_rvalid  (s_axil_rvalid),
-    .s_axil_rready  (s_axil_rready),
 
-    .m_axil_awaddr(axil_to_modules_awaddr),              // output wire [31 : 0] m_axil_awaddr
-    .m_axil_awprot(),              // output wire [2 : 0] m_axil_awprot
-    .m_axil_awvalid(axil_to_modules_awvalid),            // output wire m_axil_awvalid
-    .m_axil_awready(axil_to_modules_awready),            // input wire m_axil_awready
-    .m_axil_wdata(axil_to_modules_wdata),                // output wire [31 : 0] m_axil_wdata
-    .m_axil_wstrb(axil_to_modules_wstrb),                // output wire [3 : 0] m_axil_wstrb
-    .m_axil_wvalid(axil_to_modules_wvalid),              // output wire m_axil_wvalid
-    .m_axil_wready(axil_to_modules_wready),              // input wire m_axil_wready
-    .m_axil_bvalid(axil_to_modules_bvalid),              // input wire m_axil_bvalid
-    .m_axil_bresp(axil_to_modules_bresp),                // input wire [1 : 0] m_axil_bresp
-    .m_axil_bready(axil_to_modules_bready),              // output wire m_axil_bready
-    .m_axil_araddr(axil_to_modules_araddr),              // output wire [31 : 0] m_axil_araddr
-    .m_axil_arprot(),              // output wire [2 : 0] m_axil_arprot
-    .m_axil_arvalid(axil_to_modules_arvalid),            // output wire m_axil_arvalid
-    .m_axil_arready(axil_to_modules_arready),            // input wire m_axil_arready
-    .m_axil_rdata(axil_to_modules_rdata),                // input wire [31 : 0] m_axil_rdata
-    .m_axil_rresp(axil_to_modules_rresp),                // input wire [1 : 0] m_axil_rresp
-    .m_axil_rvalid(axil_to_modules_rvalid),              // input wire m_axil_rvalid
-    .m_axil_rready(axil_to_modules_rready)              // output wire m_axil_rready
+    .s_axil(s_axil_control),
+    .m_axil(axil_to_modules)
 
 );
    
