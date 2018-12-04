@@ -26,19 +26,32 @@
  */
 #include "mem_write_cmd_page_boundary_check_512.hpp"
 
+void calculate_page_offset(	hls::stream<memCmd>&			cmdIn,
+							hls::stream<internalCmd>&		cmdOut,
+							ap_uint<48>						regBaseVaddr)
+{
+#pragma HLS PIPELINE II=1
+#pragma HLS INLINE=off
 
+	if (!cmdIn.empty())
+	{
+		memCmd cmd = cmdIn.read();
+		ap_uint<48> addr = cmd.addr - regBaseVaddr;
+		ap_uint<48> page_offset = (addr & 0x1FFFFF);
+		cmdOut.write(internalCmd(cmd.addr, cmd.len, page_offset));
+	}
+}
 
-void boundary_check(hls::stream<memCmd>&			cmdIn,
+void boundary_check(hls::stream<internalCmd>&		cmdIn,
 					hls::stream<memCmd>&			cmdOut,
-					hls::stream<boundCheckMeta>& metaOut,
-					ap_uint<48>				regBaseVaddr)
+					hls::stream<boundCheckMeta>&	metaOut)
 {
 #pragma HLS PIPELINE II=1
 #pragma HLS INLINE=off
 
 	enum bcStateType{CMD, CMD_SPLIT};
 	static bcStateType bc_state = CMD;
-	static memCmd cmd;
+	static internalCmd cmd;
 	static ap_uint<32> newLength;
 
 	switch (bc_state)
@@ -47,11 +60,9 @@ void boundary_check(hls::stream<memCmd>&			cmdIn,
 		if (!cmdIn.empty())
 		{
 			cmdIn.read(cmd);
-			ap_uint<48> addr = cmd.addr - regBaseVaddr;
-			ap_uint<48> page_offset = (addr & 0x1FFFFF);
-			if (page_offset + cmd.len > PAGE_SIZE)
+			if (cmd.page_offset + cmd.len > PAGE_SIZE)
 			{
-				newLength = PAGE_SIZE-page_offset;
+				newLength = PAGE_SIZE-cmd.page_offset;
 				cmdOut.write(memCmd(cmd.addr, newLength));
 				cmd.addr += newLength;
 				cmd.len -= newLength;
@@ -61,14 +72,14 @@ void boundary_check(hls::stream<memCmd>&			cmdIn,
 			else
 			{
 				//newLength = 0;
-				cmdOut.write(cmd);
+				cmdOut.write(memCmd(cmd.addr, cmd.len));
 				metaOut.write(boundCheckMeta(cmd.len, false));
 				//pbc_state = PKG;
 			}
 		}
 		break;
 	case CMD_SPLIT:
-		cmdOut.write(cmd);
+		cmdOut.write(memCmd(cmd.addr, cmd.len));
 		bc_state = CMD;
 		break;
 	}
@@ -329,10 +340,13 @@ void mem_write_cmd_page_boundary_check_512(	hls::stream<memCmd>&			cmdIn,
 	#pragma HLS DATA_PACK variable=cmdOut
 	#pragma HLS INTERFACE ap_none port=regBaseVaddr
 
+	static hls::stream<internalCmd> pageOffsetFifo("pageOffsetFifo");
 	static hls::stream<boundCheckMeta> metaFifo("metaFifo");
+	#pragma HLS stream depth=2 variable=pageOffsetFifo
 	#pragma HLS stream depth=4 variable=metaFifo
 
-	boundary_check(cmdIn, cmdOut, metaFifo, regBaseVaddr);
+	calculate_page_offset(cmdIn, pageOffsetFifo, regBaseVaddr);
+	boundary_check(pageOffsetFifo, cmdOut, metaFifo);
 	pkg_split(metaFifo, dataIn, dataOut);
 
 }

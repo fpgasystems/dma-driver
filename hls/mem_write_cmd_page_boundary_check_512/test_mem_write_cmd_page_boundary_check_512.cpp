@@ -25,6 +25,7 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "mem_write_cmd_page_boundary_check_512.hpp"
+#include <iostream>
 
 
 int main()
@@ -34,7 +35,7 @@ int main()
 	hls::stream<net_axis<512> >		dataIn("dataIn");
 	hls::stream<memCmd>		cmdOut("cmdOut");
 	hls::stream<net_axis<512> >		dataOut("dataOut");
-	ap_uint<64>			regBaseVaddr;
+	ap_uint<48>			regBaseVaddr;
 
 
 	regBaseVaddr = 0x7f59dd400000;

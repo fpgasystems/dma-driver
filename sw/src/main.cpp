@@ -43,8 +43,9 @@ int main(int argc, char *argv[]) {
                                     ("accesses,a", boost::program_options::value<unsigned int>(), "Number of memory accesses")
                                     ("chunkLength,c", boost::program_options::value<unsigned int>(), "Lenght of the chunks")
                                     ("strideLength,s", boost::program_options::value<unsigned int>(), "Stride Length between memroy accesses")
-                                    ("clockPeriod,p", boost::program_options::value<unsigned int>(), "Clock period of the FPGA, default: 4ns")
-                                    ("isWrite", boost::program_options::value<bool>(), "is write");
+                                    ("isWrite", boost::program_options::value<bool>(), "is write")
+                                    ("testDDR", boost::program_options::value<bool>(), "use DDR")
+                                    ("clockPeriod,p", boost::program_options::value<unsigned int>(), "Clock period of the FPGA, default: 4ns");
    boost::program_options::variables_map commandLineArgs;
    boost::program_options::store(boost::program_options::parse_command_line(argc, argv, programDescription), commandLineArgs);
    boost::program_options::notify(commandLineArgs);
@@ -61,6 +62,7 @@ int main(int argc, char *argv[]) {
    uint32_t strideLength = 0;
    double clockPeriod = 4;
    bool isWrite = true;
+   bool useDDR = false;
 
    if (commandLineArgs.count("memorySize") > 0) {
       memorySize = commandLineArgs["memorySize"].as<unsigned long>();
@@ -80,6 +82,10 @@ int main(int argc, char *argv[]) {
    if (commandLineArgs.count("isWrite") > 0) {
       isWrite = commandLineArgs["isWrite"].as<bool>();
    }
+   if (commandLineArgs.count("testDDR") > 0) {
+      useDDR = commandLineArgs["testDDR"].as<bool>();
+   }
+ 
    bool isRandom = (strideLength != 0);
    if (isRandom) {
       std::cout << "Random ";
@@ -101,19 +107,39 @@ int main(int argc, char *argv[]) {
 
 
    uint64_t cycles = 0;
-   if (!isRandom) {
-      if (isWrite) {
-         cycles = controller->runSeqWriteBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength);
+   if (!useDDR)
+   {
+      if (!isRandom) {
+         if (isWrite) {
+            cycles = controller->runDmaSeqWriteBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength);
+         } else {
+            cycles = controller->runDmaSeqReadBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength);
+         }
       } else {
-         cycles = controller->runSeqReadBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength);
-      }
-   } else {
-      if (isWrite) {
-         cycles = controller->runRandomWriteBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength, strideLength);
-      } else {
-         cycles = controller->runRandomReadBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength, strideLength);
+         if (isWrite) {
+            cycles = controller->runDmaRandomWriteBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength, strideLength);
+         } else {
+            cycles = controller->runDmaRandomReadBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength, strideLength);
+         }
       }
    }
+   else //DDR
+   {
+      if (!isRandom) {
+         if (isWrite) {
+            cycles = controller->runMemSeqWriteBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength);
+         } else {
+            cycles = controller->runMemSeqReadBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength);
+         }
+      } else {
+         if (isWrite) {
+            cycles = controller->runMemRandomWriteBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength, strideLength);
+         } else {
+            cycles = controller->runMemRandomReadBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength, strideLength);
+         }
+      }
+   }
+
    std::cout << "Execution cycles: " << cycles << std::endl;
    uint64_t transferSize = ((uint64_t) accesses) * ((uint64_t) chunkLength);
    double transferSizeGB  = ((double) transferSize) / 1024.0 / 1024.0 / 1024.0;
@@ -123,7 +149,9 @@ int main(int argc, char *argv[]) {
    std::cout << std::fixed << "#" << memorySize << "\t" << transferSizeGB << "\t" << chunkLength << "\t" << strideLength << "\t" << cycles << "\t" << tp << std::endl;
 
 	fpga::Fpga::getController()->printDebugRegs();
-   fpga::Fpga::getController()->printDmaDebugRegs();
+   fpga::Fpga::getController()->printDmaStatsRegs();
+   fpga::Fpga::getController()->printDdrStatsRegs(0);
+   fpga::Fpga::getController()->printDdrStatsRegs(1);
 
    fpga::Fpga::free(baseAddr);
    fpga::Fpga::clear();

@@ -27,6 +27,8 @@
  `timescale 1ns / 1ps
 `default_nettype none
 
+`include "os_types.svh"
+
 module dma_controller
 (
     //clk
@@ -35,25 +37,11 @@ module dma_controller
     // user clk
     input wire          user_clk,
     input wire          user_aresetn,
+
+    // Control Interface
+    axi_lite.slave      s_axil,
     
-    input  wire  [31:0] s_axil_awaddr,
-    input  wire         s_axil_awvalid,
-    output wire         s_axil_awready,
-    input  wire  [31:0] s_axil_wdata,
-    input  wire   [3:0] s_axil_wstrb,
-    input  wire         s_axil_wvalid,
-    output wire         s_axil_wready,
-    output wire   [1:0] s_axil_bresp,
-    output wire         s_axil_bvalid,
-    input  wire         s_axil_bready,
-    input  wire  [31:0] s_axil_araddr,
-    input  wire         s_axil_arvalid,
-    output wire         s_axil_arready,
-    output wire  [31:0] s_axil_rdata,
-    output wire   [1:0] s_axil_rresp,
-    output wire         s_axil_rvalid,
-    input  wire         s_axil_rready,
-    
+    // TLB command
     output reg         m_axis_tlb_interface_valid,
     input wire         m_axis_tlb_interface_ready,
     output reg[135:0]  m_axis_tlb_interface_data,
@@ -73,13 +61,8 @@ module dma_controller
     input wire[47:0]    dma_write_length_counter,
     output reg          reset_dma_read_length_counter,
     input wire[47:0]    dma_read_length_counter,
-    input wire          dma_reads_flushed,
+    input wire          dma_reads_flushed
 
-    output reg         set_ip_addr_valid, //TODO remove
-    output reg[31:0]   set_ip_addr_data,
-    
-    output reg          set_board_number_valid,
-    output reg[3:0]     set_board_number_data
 );
 
 localparam AXI_RESP_OK = 2'b00;
@@ -110,6 +93,8 @@ localparam GPIO_REG_DMA_WRITES  = 8'h0B;
 //localparam GPIO_REG_DEBUG       = 8'h0C;
 localparam GPIO_REG_DEBUG2      = 8'h0D;
 //localparam GPIO_REG_DMA_BENCH_CYCLES = 8'h0E;
+
+localparam NUM_DMA_DEBUG_REGS = 10;
 
 localparam DEBUG_WRITE_CMD  = 8'h00;
 localparam DEBUG_WRITE_WORD = 8'h01;
@@ -152,25 +137,25 @@ wire         axil_rready;
 axi_register_slice axil_register_slice (
   .aclk(pcie_clk),                    // input wire aclk
   .aresetn(pcie_aresetn),              // input wire aresetn
-  .s_axi_awaddr(s_axil_awaddr),    // input wire [31 : 0] s_axi_awaddr
+  .s_axi_awaddr(s_axil.awaddr),    // input wire [31 : 0] s_axi_awaddr
   .s_axi_awprot(3'b00),    // input wire [2 : 0] s_axi_awprot
-  .s_axi_awvalid(s_axil_awvalid),  // input wire s_axi_awvalid
-  .s_axi_awready(s_axil_awready),  // output wire s_axi_awready
-  .s_axi_wdata(s_axil_wdata),      // input wire [31 : 0] s_axi_wdata
-  .s_axi_wstrb(s_axil_wstrb),      // input wire [3 : 0] s_axi_wstrb
-  .s_axi_wvalid(s_axil_wvalid),    // input wire s_axi_wvalid
-  .s_axi_wready(s_axil_wready),    // output wire s_axi_wready
-  .s_axi_bresp(s_axil_bresp),      // output wire [1 : 0] s_axi_bresp
-  .s_axi_bvalid(s_axil_bvalid),    // output wire s_axi_bvalid
-  .s_axi_bready(s_axil_bready),    // input wire s_axi_bready
-  .s_axi_araddr(s_axil_araddr),    // input wire [31 : 0] s_axi_araddr
+  .s_axi_awvalid(s_axil.awvalid),  // input wire s_axi_awvalid
+  .s_axi_awready(s_axil.awready),  // output wire s_axi_awready
+  .s_axi_wdata(s_axil.wdata),      // input wire [31 : 0] s_axi_wdata
+  .s_axi_wstrb(s_axil.wstrb),      // input wire [3 : 0] s_axi_wstrb
+  .s_axi_wvalid(s_axil.wvalid),    // input wire s_axi_wvalid
+  .s_axi_wready(s_axil.wready),    // output wire s_axi_wready
+  .s_axi_bresp(s_axil.bresp),      // output wire [1 : 0] s_axi_bresp
+  .s_axi_bvalid(s_axil.bvalid),    // output wire s_axi_bvalid
+  .s_axi_bready(s_axil.bready),    // input wire s_axi_bready
+  .s_axi_araddr(s_axil.araddr),    // input wire [31 : 0] s_axi_araddr
   .s_axi_arprot(3'b00),    // input wire [2 : 0] s_axi_arprot
-  .s_axi_arvalid(s_axil_arvalid),  // input wire s_axi_arvalid
-  .s_axi_arready(s_axil_arready),  // output wire s_axi_arready
-  .s_axi_rdata(s_axil_rdata),      // output wire [31 : 0] s_axi_rdata
-  .s_axi_rresp(s_axil_rresp),      // output wire [1 : 0] s_axi_rresp
-  .s_axi_rvalid(s_axil_rvalid),    // output wire s_axi_rvalid
-  .s_axi_rready(s_axil_rready),    // input wire s_axi_rready
+  .s_axi_arvalid(s_axil.arvalid),  // input wire s_axi_arvalid
+  .s_axi_arready(s_axil.arready),  // output wire s_axi_arready
+  .s_axi_rdata(s_axil.rdata),      // output wire [31 : 0] s_axi_rdata
+  .s_axi_rresp(s_axil.rresp),      // output wire [1 : 0] s_axi_rresp
+  .s_axi_rvalid(s_axil.rvalid),    // output wire s_axi_rvalid
+  .s_axi_rready(s_axil.rready),    // input wire s_axi_rready
   //.m_axi_aclk(user_clk),        // input wire m_axi_aclk
   //.m_axi_aresetn(user_aresetn),  // input wire m_axi_aresetn
   .m_axi_awaddr(axil_awaddr),    // output wire [31 : 0] m_axi_awaddr
@@ -196,56 +181,13 @@ axi_register_slice axil_register_slice (
 
 // ACTUAL LOGIC
 
-(* mark_debug = "true" *)reg[7:0] writeState;
+reg[7:0] writeState;
 reg[7:0] readState;
 
-(* mark_debug = "true" *)reg[31:0] writeAddr;
+reg[31:0] writeAddr;
 reg[31:0] readAddr;
 
 reg[7:0] word_counter;
-
-
-//register bram
-/*register_bram_32 register_bram_isnt (
-  .clka(net_aclk),    // input wire clka
-  .ena(write_en),      // input wire ena
-  .wea(write_en),      // input wire [0 : 0] wea
-  .addra(write_addr),  // input wire [8 : 0] addra
-  .dina(write_data),    // input wire [31 : 0] dina
-  .clkb(aclk),    // input wire clkb
-  .enb(read_en),      // input wire enb
-  .addrb(read_addr),  // input wire [8 : 0] addrb
-  .doutb(read_data)  // output wire [31 : 0] doutb
-);
-
-reg write_en;
-reg[31:0] write_data;
-reg[8:0] write_addr;
-reg read_en;
-reg[8:0] read_addr;
-wire[31:0] read_data;
-
-localparam NUM_DEBUG_REGS = 0;*/
-localparam NUM_DMA_DEBUG_REGS = 10;
-
-/*wire[8:0] next_addr = write_addr + 1;
-always @(posedge net_aclk)
-begin
-    if (~net_aresetn_reg) begin
-        write_en <= 0;
-        write_addr <= 0;
-    end
-    else begin
-        write_en <= 1;
-        write_addr <= write_addr + 1;
-        case (next_addr)
-            //0: write_data <= tlb_miss_counter;
-            //1: write_data <= tlb_boundary_crossing_counter;
-
-            default: write_data <= 0;
-        endcase
-    end
-end*/
 
 
 //handle writes
@@ -257,12 +199,7 @@ begin
         axil_bvalid <= 1'b0;
         
         m_axis_tlb_interface_valid <= 1'b0;
-        //m_axis_dma_bench_cmd_valid <= 1'b0;
-
-        
         word_counter <= 0;
-        set_ip_addr_valid <= 1'b0;
-        set_board_number_valid <= 1'b0;
         
         writeState <= WRITE_IDLE;
     end
@@ -273,7 +210,6 @@ begin
                 axil_wready <= 1'b0;
                 axil_bvalid <= 1'b0;
                 m_axis_tlb_interface_valid <= 1'b0;
-                //m_axis_dma_bench_cmd_valid <= 1'b0;
                 
                 reset_dma_write_length_counter <= 1'b0;
                 reset_dma_read_length_counter <= 1'b0;
@@ -317,20 +253,6 @@ begin
                                 end
                             endcase
                         end
-                        GPIO_REG_IPADDR: begin
-                            set_ip_addr_valid <= 1'b1;
-                            set_ip_addr_data <= axil_wdata[31:0];
-                            axil_bvalid <= 1'b1;
-                            axil_bresp <= AXI_RESP_OK;
-                            writeState <= WRITE_RESPONSE;
-                        end
-                        GPIO_REG_BOARDNUM: begin
-                            set_board_number_valid <= 1'b1;
-                            set_board_number_data <= axil_wdata[3:0];
-                            axil_bvalid <= 1'b1;
-                            axil_bresp <= AXI_RESP_OK;
-                            writeState <= WRITE_RESPONSE;
-                        end
                         GPIO_REG_DMA_READS: begin
                             reset_dma_read_length_counter <= 1'b1;
                             axil_bvalid <= 1'b1;
@@ -367,7 +289,7 @@ begin
 end
 
 //reads are currently not available
-(* mark_debug = "true" *)reg[7:0] debugRegAddr;
+reg[7:0] debugRegAddr;
 reg dma_read_length_upper;
 reg dma_write_length_upper;
 always @(posedge user_clk)
