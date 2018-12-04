@@ -9,6 +9,9 @@ if [[ $# > 0 ]]; then
 	if [ "$1" = "vcu709" ]; then
 		PART="xc7vx690tffg1761-2"
 	fi
+	if [ "$1" = "adm7v3" ]; then
+		PART="xc7vx690tffg1157-2"
+	fi
 	if [ "$1" = "vcu118" ]; then
 		PART="xcvu9p-flga2104-2L-e"
 	fi
