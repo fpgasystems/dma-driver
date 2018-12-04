@@ -132,26 +132,6 @@ always @(posedge user_clk) begin
 end
  
 dma_bench_ip dma_bench_inst(
-<<<<<<< HEAD
- .m_axis_read_cmd_TVALID(m_axis_dma_read_cmd_tvalid),
- .m_axis_read_cmd_TREADY(m_axis_dma_read_cmd_tready),
- .m_axis_read_cmd_TDATA(m_axis_dma_read_cmd_tdata),
- .m_axis_write_cmd_TVALID(m_axis_dma_write_cmd_tvalid),
- .m_axis_write_cmd_TREADY(m_axis_dma_write_cmd_tready),
- .m_axis_write_cmd_TDATA(m_axis_dma_write_cmd_tdata),
- .m_axis_write_data_TVALID(m_axis_dma_write_data_tvalid),
- .m_axis_write_data_TREADY(m_axis_dma_write_data_tready),
- .m_axis_write_data_TDATA(m_axis_dma_write_data_tdata),
- .m_axis_write_data_TKEEP(m_axis_dma_write_data_tkeep),
- .m_axis_write_data_TLAST(m_axis_dma_write_data_tlast),
- .s_axis_read_data_TVALID(s_axis_dma_read_data_tvalid),
- .s_axis_read_data_TREADY(s_axis_dma_read_data_tready),
- .s_axis_read_data_TDATA(s_axis_dma_read_data_tdata),
- .s_axis_read_data_TKEEP(s_axis_dma_read_data_tkeep),
- .s_axis_read_data_TLAST(s_axis_dma_read_data_tlast),
- .aresetn(user_aresetn),
- .aclk(user_clk),
-=======
  .m_axis_read_cmd_TVALID(m_axis_dma_read_cmd.valid),
  .m_axis_read_cmd_TREADY(m_axis_dma_read_cmd.ready),
  .m_axis_read_cmd_TDATA({m_axis_dma_read_cmd.length, m_axis_dma_read_cmd.address}),
@@ -170,7 +150,6 @@ dma_bench_ip dma_bench_inst(
  .s_axis_read_data_TLAST(s_axis_dma_read_data.last),
  .aresetn(net_aresetn),
  .aclk(net_clk),
->>>>>>> dfcf8642b54ec95c04ae9348d6d74abaa7add37f
  .regBaseAddr_V({16'h00, dmaBenchBaseAddr}),
  .memorySize_V({16'h00, dmaBenchMemorySize}),
  .numberOfAccesses_V(dmaBenchNumberOfAccesses),
@@ -256,26 +235,6 @@ always @(posedge user_clk) begin
 end
 
 dma_bench_ip ddr0_bench_inst(
-<<<<<<< HEAD
- .m_axis_read_cmd_TVALID(m_axis_mem0_read_cmd_tvalid),
- .m_axis_read_cmd_TREADY(m_axis_mem0_read_cmd_tready),
- .m_axis_read_cmd_TDATA(m_axis_mem0_read_cmd_tdata),
- .m_axis_write_cmd_TVALID(m_axis_mem0_write_cmd_tvalid),
- .m_axis_write_cmd_TREADY(m_axis_mem0_write_cmd_tready),
- .m_axis_write_cmd_TDATA(m_axis_mem0_write_cmd_tdata),
- .m_axis_write_data_TVALID(m_axis_mem0_write_data_tvalid),
- .m_axis_write_data_TREADY(m_axis_mem0_write_data_tready),
- .m_axis_write_data_TDATA(m_axis_mem0_write_data_tdata),
- .m_axis_write_data_TKEEP(m_axis_mem0_write_data_tkeep),
- .m_axis_write_data_TLAST(m_axis_mem0_write_data_tlast),
- .s_axis_read_data_TVALID(s_axis_mem0_read_data_tvalid),
- .s_axis_read_data_TREADY(s_axis_mem0_read_data_tready),
- .s_axis_read_data_TDATA(s_axis_mem0_read_data_tdata),
- .s_axis_read_data_TKEEP(s_axis_mem0_read_data_tkeep),
- .s_axis_read_data_TLAST(s_axis_mem0_read_data_tlast),
- .aresetn(user_aresetn),
- .aclk(user_clk),
-=======
  .m_axis_read_cmd_TVALID(m_axis_mem_read_cmd[0].valid),
  .m_axis_read_cmd_TREADY(m_axis_mem_read_cmd[0].ready),
  .m_axis_read_cmd_TDATA({m_axis_mem_read_cmd[0].length, m_axis_mem_read_cmd[0].address}),
@@ -294,7 +253,6 @@ dma_bench_ip ddr0_bench_inst(
  .s_axis_read_data_TLAST(s_axis_mem_read_data[0].last),
  .aresetn(net_aresetn),
  .aclk(net_clk),
->>>>>>> dfcf8642b54ec95c04ae9348d6d74abaa7add37f
  .regBaseAddr_V({16'h00, ddrBenchBaseAddr}),
  .memorySize_V({16'h00, ddrBenchMemorySize}),
  .numberOfAccesses_V(ddrBenchNumberOfAccesses),
@@ -307,26 +265,6 @@ dma_bench_ip ddr0_bench_inst(
  );
 
 dma_bench_ip ddr1_bench_inst(
-<<<<<<< HEAD
- .m_axis_read_cmd_TVALID(m_axis_mem1_read_cmd_tvalid),
- .m_axis_read_cmd_TREADY(m_axis_mem1_read_cmd_tready),
- .m_axis_read_cmd_TDATA(m_axis_mem1_read_cmd_tdata),
- .m_axis_write_cmd_TVALID(m_axis_mem1_write_cmd_tvalid),
- .m_axis_write_cmd_TREADY(m_axis_mem1_write_cmd_tready),
- .m_axis_write_cmd_TDATA(m_axis_mem1_write_cmd_tdata),
- .m_axis_write_data_TVALID(m_axis_mem1_write_data_tvalid),
- .m_axis_write_data_TREADY(m_axis_mem1_write_data_tready),
- .m_axis_write_data_TDATA(m_axis_mem1_write_data_tdata),
- .m_axis_write_data_TKEEP(m_axis_mem1_write_data_tkeep),
- .m_axis_write_data_TLAST(m_axis_mem1_write_data_tlast),
- .s_axis_read_data_TVALID(s_axis_mem1_read_data_tvalid),
- .s_axis_read_data_TREADY(s_axis_mem1_read_data_tready),
- .s_axis_read_data_TDATA(s_axis_mem1_read_data_tdata),
- .s_axis_read_data_TKEEP(s_axis_mem1_read_data_tkeep),
- .s_axis_read_data_TLAST(s_axis_mem1_read_data_tlast),
- .aresetn(user_aresetn),
- .aclk(user_clk),
-=======
  .m_axis_read_cmd_TVALID(m_axis_mem_read_cmd[1].valid),
  .m_axis_read_cmd_TREADY(m_axis_mem_read_cmd[1].ready),
  .m_axis_read_cmd_TDATA({m_axis_mem_read_cmd[1].length, m_axis_mem_read_cmd[1].address}),
@@ -345,7 +283,6 @@ dma_bench_ip ddr1_bench_inst(
  .s_axis_read_data_TLAST(s_axis_mem_read_data[1].last),
  .aresetn(net_aresetn),
  .aclk(net_clk),
->>>>>>> dfcf8642b54ec95c04ae9348d6d74abaa7add37f
  .regBaseAddr_V({16'h00, ddrBenchBaseAddr}),
  .memorySize_V({16'h00, ddrBenchMemorySize}),
  .numberOfAccesses_V(ddrBenchNumberOfAccesses),
