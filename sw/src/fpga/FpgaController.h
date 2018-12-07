@@ -103,7 +103,7 @@ enum class ddrCtrlAddr: uint32_t { DEBUG = 9,
                                  READS = 2,
                                  WRITES = 3
                               };
-static const uint32_t numDdrStatsRegs = 12;
+static const uint32_t numDdrStatsRegs = 13;
 static const std::string DdrRegNames[] = {"write cmd counter",
                                           "write word counter",
                                           "write pkg counter",
@@ -116,6 +116,7 @@ static const std::string DdrRegNames[] = {"write cmd counter",
                                           "read length counter",
                                           "read status counter",
                                           "read error counter",
+                                          "datamover errors"
                                           };
 
 static const uint64_t userRegAddressOffset = 0;

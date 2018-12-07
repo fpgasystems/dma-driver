@@ -27,6 +27,8 @@
  `timescale 1ns / 1ps
 `default_nettype none
 
+`include "os_types.svh"
+
 module ddr_controller
 (
     //clk
@@ -35,24 +37,9 @@ module ddr_controller
     // user clk
     input wire          mem_clk,
     input wire          mem_aresetn,
-    
-    input  wire  [31:0] s_axil_awaddr,
-    input  wire         s_axil_awvalid,
-    output wire         s_axil_awready,
-    input  wire  [31:0] s_axil_wdata,
-    input  wire   [3:0] s_axil_wstrb,
-    input  wire         s_axil_wvalid,
-    output wire         s_axil_wready,
-    output wire   [1:0] s_axil_bresp,
-    output wire         s_axil_bvalid,
-    input  wire         s_axil_bready,
-    input  wire  [31:0] s_axil_araddr,
-    input  wire         s_axil_arvalid,
-    output wire         s_axil_arready,
-    output wire  [31:0] s_axil_rdata,
-    output wire   [1:0] s_axil_rresp,
-    output wire         s_axil_rvalid,
-    input  wire         s_axil_rready,
+
+    //Control interface
+    axi_lite.slave      s_axil,
     
     input wire[31:0]    write_cmd_counter,
     input wire[31:0]    write_word_counter,
@@ -139,25 +126,26 @@ wire         axil_rready;
 axil_clock_converter axil_clock_converter (
   .s_axi_aclk(pcie_clk),                    // input wire aclk
   .s_axi_aresetn(pcie_aresetn),              // input wire aresetn
-  .s_axi_awaddr(s_axil_awaddr),    // input wire [31 : 0] s_axi_awaddr
+  .s_axi_awaddr(s_axil.awaddr),    // input wire [31 : 0] s_axi_awaddr
   .s_axi_awprot(3'b00),    // input wire [2 : 0] s_axi_awprot
-  .s_axi_awvalid(s_axil_awvalid),  // input wire s_axi_awvalid
-  .s_axi_awready(s_axil_awready),  // output wire s_axi_awready
-  .s_axi_wdata(s_axil_wdata),      // input wire [31 : 0] s_axi_wdata
-  .s_axi_wstrb(s_axil_wstrb),      // input wire [3 : 0] s_axi_wstrb
-  .s_axi_wvalid(s_axil_wvalid),    // input wire s_axi_wvalid
-  .s_axi_wready(s_axil_wready),    // output wire s_axi_wready
-  .s_axi_bresp(s_axil_bresp),      // output wire [1 : 0] s_axi_bresp
-  .s_axi_bvalid(s_axil_bvalid),    // output wire s_axi_bvalid
-  .s_axi_bready(s_axil_bready),    // input wire s_axi_bready
-  .s_axi_araddr(s_axil_araddr),    // input wire [31 : 0] s_axi_araddr
+  .s_axi_awvalid(s_axil.awvalid),  // input wire s_axi_awvalid
+  .s_axi_awready(s_axil.awready),  // output wire s_axi_awready
+  .s_axi_wdata(s_axil.wdata),      // input wire [31 : 0] s_axi_wdata
+  .s_axi_wstrb(s_axil.wstrb),      // input wire [3 : 0] s_axi_wstrb
+  .s_axi_wvalid(s_axil.wvalid),    // input wire s_axi_wvalid
+  .s_axi_wready(s_axil.wready),    // output wire s_axi_wready
+  .s_axi_bresp(s_axil.bresp),      // output wire [1 : 0] s_axi_bresp
+  .s_axi_bvalid(s_axil.bvalid),    // output wire s_axi_bvalid
+  .s_axi_bready(s_axil.bready),    // input wire s_axi_bready
+  .s_axi_araddr(s_axil.araddr),    // input wire [31 : 0] s_axi_araddr
   .s_axi_arprot(3'b00),    // input wire [2 : 0] s_axi_arprot
-  .s_axi_arvalid(s_axil_arvalid),  // input wire s_axi_arvalid
-  .s_axi_arready(s_axil_arready),  // output wire s_axi_arready
-  .s_axi_rdata(s_axil_rdata),      // output wire [31 : 0] s_axi_rdata
-  .s_axi_rresp(s_axil_rresp),      // output wire [1 : 0] s_axi_rresp
-  .s_axi_rvalid(s_axil_rvalid),    // output wire s_axi_rvalid
-  .s_axi_rready(s_axil_rready),    // input wire s_axi_rready
+  .s_axi_arvalid(s_axil.arvalid),  // input wire s_axi_arvalid
+  .s_axi_arready(s_axil.arready),  // output wire s_axi_arready
+  .s_axi_rdata(s_axil.rdata),      // output wire [31 : 0] s_axi_rdata
+  .s_axi_rresp(s_axil.rresp),      // output wire [1 : 0] s_axi_rresp
+  .s_axi_rvalid(s_axil.rvalid),    // output wire s_axi_rvalid
+  .s_axi_rready(s_axil.rready),    // input wire s_axi_rready
+
   .m_axi_aclk(mem_clk),        // input wire m_axi_aclk
   .m_axi_aresetn(mem_aresetn),  // input wire m_axi_aresetn
   .m_axi_awaddr(axil_awaddr),    // output wire [31 : 0] m_axi_awaddr
@@ -183,12 +171,10 @@ axil_clock_converter axil_clock_converter (
 
 // ACTUAL LOGIC
 
-(* mark_debug = "true" *)reg[7:0] writeState;
-(* mark_debug = "true" *)reg[7:0] readState;
+reg[7:0] writeState;
+reg[7:0] readState;
 
-//(* mark_debug = "true" *)reg[31:0] writeAddr;
-(* mark_debug = "true" *)reg[7:0] readAddr;
-
+reg[7:0] readAddr;
 
 //handle writes => always return default ERROR
 always @(posedge mem_clk)
@@ -207,8 +193,6 @@ begin
                 axil_wready <= 1'b0;
                 axil_bvalid <= 1'b0;
                 
-                
-                //writeAddr = (axil_awaddr[11:0] >> 5);
                 if (axil_awvalid && axil_awready) begin
                     axil_awready <= 1'b0;
                     axil_wready <= 1'b1;
@@ -236,7 +220,7 @@ begin
 end
 
 //handle reads
-(* mark_debug = "true" *)reg[7:0] statsRegAddr;
+reg[7:0] statsRegAddr;
 reg read_length_upper;
 reg write_length_upper;
 always @(posedge mem_clk)
@@ -290,7 +274,6 @@ begin
                             STATS_WRITE_LEN: begin
                                 axil_rdata <= write_length_counter[31:0];
                             end
-                            //TODO rename
                             STATS_WRITE_STS: begin
                                 axil_rdata <= write_sts_counter;
                             end
