@@ -24,11 +24,11 @@ module mem_driver #(
     output wire[0:0]                 c0_ddr4_ck_t,
     output wire[0:0]                c0_ddr4_ck_c,
     output wire                 c0_ddr4_reset_n,
-    inout  wire[9:0]            c0_ddr4_dm_dbi_n,
-    inout  wire[79:0]            c0_ddr4_dq,
-    inout  wire[9:0]            c0_ddr4_dqs_t,
-    inout  wire[9:0]            c0_ddr4_dqs_c,
-    output wire                 c0_ui_clk,
+    inout  wire[8:0]            c0_ddr4_dm_dbi_n, //9:0 with native interface, 8:0 with Axi & ECC
+    inout  wire[71:0]            c0_ddr4_dq, //79:0 with native interface, 71:0 with Axi & ECC
+    inout  wire[8:0]            c0_ddr4_dqs_t, //9:0 with native interface, 8:0 with Axi & ECC
+    inout  wire[8:0]            c0_ddr4_dqs_c, //9:0 with native interface, 8:0 with Axi & ECC
+    //output wire                 c0_ui_clk,
     output wire                 c0_init_calib_complete,
 
     /* OS INTERFACE */
@@ -68,8 +68,8 @@ module mem_driver #(
     input wire                                    s_axi_arvalid,
     output logic                                  s_axi_arready,
     // Slave Interface Read Data Ports
-    input wire                                  s_axi_rready,
-    input wire [C0_C_S_AXI_ID_WIDTH-1:0]          s_axi_rid,
+    input wire                                      s_axi_rready,
+    output logic [C0_C_S_AXI_ID_WIDTH-1:0]          s_axi_rid,
     output logic [C0_C_S_AXI_DATA_WIDTH-1:0]        s_axi_rdata,
     output logic [1:0]                              s_axi_rresp,
     output logic                                    s_axi_rlast,
