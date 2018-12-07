@@ -651,7 +651,7 @@ os os_inst(
     .s_axil_control         (axil_control),
 
     //DDR
-    .ddr3_calib_complete(ddr3_calib_complete),
+    .ddr_calib_complete(ddr3_calib_complete),
 
     .m_axi_awid(s_axi_awid),
     .m_axi_awaddr(s_axi_awaddr),
