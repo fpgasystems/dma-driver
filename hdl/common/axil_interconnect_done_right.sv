@@ -31,7 +31,7 @@
 
 
 module axil_interconnect_done_right #(
-    parameter NUM_MASTER_PORTS = 2
+    parameter NUM_MASTER_PORTS = 4
 ) (
     input wire      aclk,
     input wire      aresetn,
@@ -75,7 +75,7 @@ axil_controller_crossbar axi_interconnect_crossbar (
   .aclk(aclk),
   .aresetn(aresetn),
   .s_axi_awaddr(s_axil.awaddr),
-  .s_axi_awprot(),//s_axil.awprot),
+  .s_axi_awprot({NUM_MASTER_PORTS{1'b0}}),
   .s_axi_awvalid(s_axil.awvalid),
   .s_axi_awready(s_axil.awready),
   .s_axi_wdata(s_axil.wdata),
@@ -86,7 +86,7 @@ axil_controller_crossbar axi_interconnect_crossbar (
   .s_axi_bvalid(s_axil.bvalid),
   .s_axi_bready(s_axil.bready),
   .s_axi_araddr(s_axil.araddr),
-  .s_axi_arprot(),//s_axil.arprot),
+  .s_axi_arprot({NUM_MASTER_PORTS{1'b0}}),
   .s_axi_arvalid(s_axil.arvalid),
   .s_axi_arready(s_axil.arready),
   .s_axi_rdata(s_axil.rdata),
@@ -95,7 +95,7 @@ axil_controller_crossbar axi_interconnect_crossbar (
   .s_axi_rready(s_axil.rready),
 
   .m_axi_awaddr(axil_awaddr),
-  .m_axi_awprot(),//axil_awprot),
+  .m_axi_awprot(),
   .m_axi_awvalid(axil_awvalid),
   .m_axi_awready(axil_awready),
   .m_axi_wdata(axil_wdata),
@@ -106,7 +106,7 @@ axil_controller_crossbar axi_interconnect_crossbar (
   .m_axi_bvalid(axil_bvalid),
   .m_axi_bready(axil_bready),
   .m_axi_araddr(axil_araddr),
-  .m_axi_arprot(),//axil_arprot),
+  .m_axi_arprot(),
   .m_axi_arvalid(axil_arvalid),
   .m_axi_arready(axil_arready),
   .m_axi_rdata(axil_rdata),

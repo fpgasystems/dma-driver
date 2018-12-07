@@ -74,8 +74,8 @@ module benchmark_role(
  * Clock
  */
 //Choose clock for the user logic
-assign user_clk = pcie_clk;
-assign user_aresetn = pcie_aresetn; 
+assign user_clk = net_clk;//pcie_clk;
+assign user_aresetn = net_aresetn;//pcie_aresetn; 
 
 
 /*
@@ -148,8 +148,8 @@ dma_bench_ip dma_bench_inst(
  .s_axis_read_data_TDATA(s_axis_dma_read_data.data),
  .s_axis_read_data_TKEEP(s_axis_dma_read_data.keep),
  .s_axis_read_data_TLAST(s_axis_dma_read_data.last),
- .aresetn(net_aresetn),
- .aclk(net_clk),
+ .aresetn(user_aresetn),
+ .aclk(user_clk),
  .regBaseAddr_V({16'h00, dmaBenchBaseAddr}),
  .memorySize_V({16'h00, dmaBenchMemorySize}),
  .numberOfAccesses_V(dmaBenchNumberOfAccesses),
@@ -251,8 +251,8 @@ dma_bench_ip ddr0_bench_inst(
  .s_axis_read_data_TDATA(s_axis_mem_read_data[0].data),
  .s_axis_read_data_TKEEP(s_axis_mem_read_data[0].keep),
  .s_axis_read_data_TLAST(s_axis_mem_read_data[0].last),
- .aresetn(net_aresetn),
- .aclk(net_clk),
+ .aresetn(user_aresetn),
+ .aclk(user_clk),
  .regBaseAddr_V({16'h00, ddrBenchBaseAddr}),
  .memorySize_V({16'h00, ddrBenchMemorySize}),
  .numberOfAccesses_V(ddrBenchNumberOfAccesses),
@@ -281,8 +281,8 @@ dma_bench_ip ddr1_bench_inst(
  .s_axis_read_data_TDATA(s_axis_mem_read_data[1].data),
  .s_axis_read_data_TKEEP(s_axis_mem_read_data[1].keep),
  .s_axis_read_data_TLAST(s_axis_mem_read_data[1].last),
- .aresetn(net_aresetn),
- .aclk(net_clk),
+ .aresetn(user_aresetn),
+ .aclk(user_clk),
  .regBaseAddr_V({16'h00, ddrBenchBaseAddr}),
  .memorySize_V({16'h00, ddrBenchMemorySize}),
  .numberOfAccesses_V(ddrBenchNumberOfAccesses),

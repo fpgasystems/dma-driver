@@ -42,12 +42,14 @@ module os #(
     input wire[NUM_DDR_CHANNELS-1:0]    mem_aresetn,
     input wire      net_clk,
     input wire      net_aresetn,
+    output logic    user_clk,
+    output logic    user_aresetn,
 
     //Axi Lite Control Interface
     axi_lite.slave      s_axil_control,
     
     //DDR
-    input wire          ddr3_calib_complete,
+    input wire          ddr_calib_complete,
     // Slave Interface Write Address Ports
     output logic [AXI_ID_WIDTH-1:0]                 m_axi_awid  [NUM_DDR_CHANNELS-1:0],
     output logic [31:0]                             m_axi_awaddr    [NUM_DDR_CHANNELS-1:0],
@@ -128,13 +130,13 @@ localparam AxilPortDDR1 = 3;
 axi_lite        axil_to_modules[NUM_AXIL_MODULES]();
 
 // Memory Signals
-axis_mem_cmd    axis_mem_read_cmd[NUM_DDR_CHANNELS]();
-axi_stream      axis_mem_read_data[NUM_DDR_CHANNELS]();
-axis_mem_status axis_mem_read_status[NUM_DDR_CHANNELS](); 
+(* mark_debug = "true" *)axis_mem_cmd    axis_mem_read_cmd[NUM_DDR_CHANNELS]();
+ (* mark_debug = "true" *)axi_stream      axis_mem_read_data[NUM_DDR_CHANNELS]();
+ (* mark_debug = "true" *)axis_mem_status axis_mem_read_status[NUM_DDR_CHANNELS](); 
 
-axis_mem_cmd    axis_mem_write_cmd[NUM_DDR_CHANNELS]();
-axi_stream      axis_mem_write_data[NUM_DDR_CHANNELS]();
-axis_mem_status axis_mem_write_status[NUM_DDR_CHANNELS]();
+ (* mark_debug = "true" *)axis_mem_cmd    axis_mem_write_cmd[NUM_DDR_CHANNELS]();
+ (* mark_debug = "true" *)axi_stream      axis_mem_write_data[NUM_DDR_CHANNELS]();
+ (* mark_debug = "true" *)axis_mem_status axis_mem_write_status[NUM_DDR_CHANNELS]();
 
 // DMA Signals
 axis_mem_cmd    axis_dma_read_cmd();
@@ -149,9 +151,11 @@ axi_stream      axis_dma_write_data();
 benchmark_role user_role(
     .net_clk(net_clk),
     .net_aresetn(net_aresetn),
-
     .pcie_clk(pcie_clk),
     .pcie_aresetn(pcie_aresetn),
+
+    .user_clk(user_clk),
+    .user_aresetn(user_aresetn),
 
     /* CONTROL INTERFACE */
     // LITE interface
@@ -185,8 +189,8 @@ localparam DDR_CHANNEL1 = 1;
 
 
 mem_single_inf  mem_inf_inst0(
-.user_clk(net_clk),
-.user_aresetn(ddr3_calib_complete),
+.user_clk(user_clk),
+.user_aresetn(ddr_calib_complete),
 .pcie_clk(pcie_clk), //TODO remove
 .pcie_aresetn(pcie_aresetn),
 .mem_clk(mem_clk[DDR_CHANNEL0]),
@@ -254,8 +258,8 @@ mem_single_inf  mem_inf_inst0(
 );
 
 mem_single_inf  mem_inf_inst1(
-.user_clk(net_clk),
-.user_aresetn(ddr3_calib_complete),
+.user_clk(user_clk),
+.user_aresetn(ddr_calib_complete),
 .pcie_clk(pcie_clk),
 .pcie_aresetn(pcie_aresetn), //TODO remove
 .mem_clk(mem_clk[DDR_CHANNEL1]),
@@ -333,8 +337,8 @@ mem_single_inf  mem_inf_inst1(
 dma_inf dma_interface (
     .pcie_clk(pcie_clk),
     .pcie_aresetn(pcie_aresetn),
-    .user_clk(net_clk),
-    .user_aresetn(net_aresetn),
+    .user_clk(user_clk),
+    .user_aresetn(user_aresetn),
 
     /* USER INTERFACE */
     .s_axis_dma_read_cmd            (axis_dma_read_cmd),
