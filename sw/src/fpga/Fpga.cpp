@@ -49,7 +49,7 @@ void Fpga::setNodeId(int _nodeId) {
 void Fpga::initializeMemory() {
    //Open huge pages device
    if ((hfd = open("/media/huge/abc", O_CREAT | O_RDWR | O_SYNC, 0755)) == -1) {
-      std::cerr << "[ERROR] on open /dev/huge/abc";
+      std::cerr << "[ERROR] on open /media/huge/abc";
       exit(1);
    }
    printf("huge device /media/huge/abc opened.\n"); fflush(stdout);
