@@ -113,30 +113,64 @@ module dma_example_top(
     output wire[5:0]                     led);
 
 
-// PCIe signals
+/*
+ * Clock & Reset Signals
+ */
+wire clk_ref_200;
+
+wire user_clk;
+wire user_aresetn;
+
+/*
+ * PCIe Signals
+ */
 wire pcie_lnk_up;
 wire pcie_ref_clk;
-//Network signals    
-wire network_init;
 
-(* max_fanout = "64" *)  reg net_aresetn;
+// PCIe usser clock & reset
+wire pcie_clk;
+wire pcie_aresetn;
 
-assign sfp_on = 1'b1;
-`ifdef USE_DDR
-assign dram_on = 2'b11;
-assign c0_ddr3_dm = 9'h0;
-assign c1_ddr3_dm = 9'h0;
-`else
-wire pok_dram;
-assign pok_dram = 1'b1;
-`endif
-wire net_clk;
-wire clk_ref_200;
+
+/*
+ * DMA Signals
+ */
+//Axi Lite Control Bus
+axi_lite        axil_control();
+
+wire        c2h_dsc_byp_load_0;
+wire        c2h_dsc_byp_ready_0;
+wire[63:0]  c2h_dsc_byp_addr_0;
+wire[31:0]  c2h_dsc_byp_len_0;
+
+wire        h2c_dsc_byp_load_0;
+wire        h2c_dsc_byp_ready_0;
+wire[63:0]  h2c_dsc_byp_addr_0;
+wire[31:0]  h2c_dsc_byp_len_0;
+
+axi_stream  axis_dma_c2h();
+axi_stream  axis_dma_h2c();
+
+wire[7:0] c2h_sts_0;
+wire[7:0] h2c_sts_0;
 
 
 /*
  * Network Signals
  */
+
+assign sfp_on = 1'b1;
+wire network_init;
+
+wire net_clk;
+(* max_fanout = "64" *)  reg net_aresetn;
+reg reset156_25_n_r1, reset156_25_n_r2, reset156_25_n_r3;
+always @(posedge net_clk) begin
+    reset156_25_n_r1 <= perst_n & pok_dram & network_init;
+    reset156_25_n_r2 <= reset156_25_n_r1;
+    net_aresetn <= reset156_25_n_r2;
+end
+
 /*wire        AXI_M_Stream_TVALID;
 wire        AXI_M_Stream_TREADY;
 wire[63:0]  AXI_M_Stream_TDATA;
@@ -181,7 +215,92 @@ assign AXI_M_Stream1_TLAST = 0;
 assign AXI_S_Stream0_TREADY = 1'b1;
 assign AXI_S_Stream1_TREADY = 1'b1;
 
+/*
+ * DDR Signals
+ */
+localparam DDR_CHANNEL0 = 0;
+localparam DDR_CHANNEL1 = 1;
+localparam NUM_DDR_CHANNELS = 2;//TODO Move
 
+`ifdef USE_DDR
+assign dram_on = 2'b11;
+assign c0_ddr3_dm = 9'h0;
+assign c1_ddr3_dm = 9'h0;
+`else
+wire pok_dram;
+assign pok_dram = 1'b1;
+`endif
+
+
+ (* mark_debug = "true" *)logic[NUM_DDR_CHANNELS-1:0] ddr_init_calib_complete [2:0];
+(* mark_debug = "true" *)wire ddr_calib_complete;
+
+//registers for crossing clock domains (from DDR clock to User Clock)
+always @(posedge user_clk)
+    if (~user_aresetn) begin
+        ddr_init_calib_complete[1] <= '0;
+        ddr_init_calib_complete[2] <= '0;
+    end
+    else begin
+        ddr_init_calib_complete[1] <= ddr_init_calib_complete[0];
+        ddr_init_calib_complete[2] <= ddr_init_calib_complete[1];
+    end
+
+assign ddr_calib_complete = &ddr_init_calib_complete[2];
+
+/*
+ * Clock Generation
+ */
+wire GND_1;
+
+GND GND(.G(GND_1));
+       
+       
+       IBUFDS_GTE2 #(
+            .CLKCM_CFG("TRUE"),   // Refer to Transceiver User Guide
+            .CLKRCV_TRST("TRUE"), // Refer to Transceiver User Guide
+            .CLKSWING_CFG(2'b11)  // Refer to Transceiver User Guide
+         )
+         IBUFDS_GTE2_inst (
+            .O(pcie_ref_clk),         // 1-bit output: Refer to Transceiver User Guide
+            .ODIV2(),            // 1-bit output: Refer to Transceiver User Guide
+            .CEB(GND_1),          // 1-bit input: Refer to Transceiver User Guide
+            .I(pcie_clk_p),        // 1-bit input: Refer to Transceiver User Guide
+            .IB(pcie_clk_n)        // 1-bit input: Refer to Transceiver User Guide
+);
+
+
+/*
+ * LEDs
+ */
+localparam  LED_CTR_WIDTH           = 26;
+logic [LED_CTR_WIDTH-1:0]           led_pcie_clk;
+logic [LED_CTR_WIDTH-1:0]           led_net_clk;
+logic [LED_CTR_WIDTH-1:0]           led_ddr_clk;
+
+always @(posedge pcie_clk)
+begin
+    led_pcie_clk <= led_pcie_clk + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
+end
+
+always @(posedge net_clk)
+begin
+    led_net_clk <= led_net_clk + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
+end
+
+`ifdef USE_DDR
+always @(posedge mem_clk[DDR_CHANNEL0])
+begin
+    led_ddr_clk <= led_ddr_clk + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
+end
+`endif
+
+assign led[0] = pcie_lnk_up;
+assign led[1] = network_init;
+assign led[2] = ddr_calib_complete;
+assign led[3] = led_pcie_clk[LED_CTR_WIDTH-1];
+assign led[4] = led_net_clk[LED_CTR_WIDTH-1];
+assign led[5] = led_ddr_clk[LED_CTR_WIDTH-1];
 
 /*
  * 10G Network Interface Module
@@ -236,102 +355,6 @@ adm7v3_10g_interface n10g_interface_inst (
 .led());
 
 
-wire c0_init_calib_complete;
-wire c1_init_calib_complete;
-
-// PCIe usser clock & reset
-wire pcie_clk;
-wire pcie_aresetn;
-
-
-wire c0_ui_clk;
-(* mark_debug = "true" *)wire ddr3_calib_complete;
-wire init_calib_complete;
-reg reset156_25_n_r1, reset156_25_n_r2, reset156_25_n_r3;
-
-//registers for crossing clock domains (from 233MHz to 156.25MHz)
-reg c0_init_calib_complete_r1, c0_init_calib_complete_r2;
-reg c1_init_calib_complete_r1, c1_init_calib_complete_r2;
-
-
-localparam  LED_CTR_WIDTH           = 26;
-reg     [LED_CTR_WIDTH-1:0]           l0_ctr;
-reg     [LED_CTR_WIDTH-1:0]           l1_ctr;
-reg     [LED_CTR_WIDTH-1:0]           l2_ctr;
-reg     [LED_CTR_WIDTH-1:0]           l3_ctr;
-
-always @(posedge net_clk)
-begin
-    l0_ctr <= l0_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
-end
-
-always @(posedge c0_ui_clk)
-begin
-    l1_ctr <= l1_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
-end
-always @(posedge clk_ref_200)
-begin
-    l2_ctr <= l2_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
-end
-always @(posedge pcie_clk)
-begin
-    l3_ctr <= l3_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
-end
-
-
-
-assign led[0] = network_init & pok_dram & init_calib_complete;
-assign led[1] = pcie_lnk_up;
-assign led[2] = l0_ctr[LED_CTR_WIDTH-1];
-assign led[3] = l3_ctr[LED_CTR_WIDTH-1];
-assign led[4] = perst_n & net_aresetn;
-///assign led[5] = aresetn;
-
-   
-   always @(posedge net_clk) begin
-        reset156_25_n_r1 <= perst_n & pok_dram & network_init;
-        reset156_25_n_r2 <= reset156_25_n_r1;
-        net_aresetn <= reset156_25_n_r2;
-   end
-  
-always @(posedge net_clk) 
-    if (~net_aresetn) begin
-        c0_init_calib_complete_r1 <= 1'b0;
-        c0_init_calib_complete_r2 <= 1'b0;
-        c1_init_calib_complete_r1 <= 1'b0;
-        c1_init_calib_complete_r2 <= 1'b0;
-    end
-    else begin
-        c0_init_calib_complete_r1 <= c0_init_calib_complete;
-        c0_init_calib_complete_r2 <= c0_init_calib_complete_r1;
-        c1_init_calib_complete_r1 <= c1_init_calib_complete;
-        c1_init_calib_complete_r2 <= c1_init_calib_complete_r1;
-    end
-
-assign ddr3_calib_complete = c0_init_calib_complete_r2 & c1_init_calib_complete_r2;
-assign init_calib_complete = ddr3_calib_complete;
-
-
-
-wire GND_1;
-
-GND GND(.G(GND_1));
-       
-       
-       IBUFDS_GTE2 #(
-            .CLKCM_CFG("TRUE"),   // Refer to Transceiver User Guide
-            .CLKRCV_TRST("TRUE"), // Refer to Transceiver User Guide
-            .CLKSWING_CFG(2'b11)  // Refer to Transceiver User Guide
-         )
-         IBUFDS_GTE2_inst (
-            .O(pcie_ref_clk),         // 1-bit output: Refer to Transceiver User Guide
-            .ODIV2(),            // 1-bit output: Refer to Transceiver User Guide
-            .CEB(GND_1),          // 1-bit input: Refer to Transceiver User Guide
-            .I(pcie_clk_p),        // 1-bit input: Refer to Transceiver User Guide
-            .IB(pcie_clk_n)        // 1-bit input: Refer to Transceiver User Guide
-);
-
-
 /*
  * Memory Interface
  */
@@ -341,9 +364,6 @@ localparam C0_C_S_AXI_ID_WIDTH = 1;
 localparam C0_C_S_AXI_ADDR_WIDTH = 32;
 localparam C0_C_S_AXI_DATA_WIDTH = 512;
 
-localparam DDR_CHANNEL0 = 0;
-localparam DDR_CHANNEL1 = 1;
-localparam NUM_DDR_CHANNELS = 2;//TODO Move
 
 wire[NUM_DDR_CHANNELS-1:0] mem_clk;
 wire[NUM_DDR_CHANNELS-1:0] mem_aresetn;
@@ -415,7 +435,7 @@ mem_driver  mem_driver_inst(
 //.c0_ddr3_dm(c0_ddr3_dm),
 .c0_ddr3_odt(c0_ddr3_odt),
 //.c0_ui_clk(c0_ui_clk),
-.c0_init_calib_complete(c0_init_calib_complete),
+.c0_init_calib_complete(ddr_init_calib_complete[0][DDR_CHANNEL0]),
   // Differential system clocks
 .c0_sys_clk_p(c0_sys_clk_p),
 .c0_sys_clk_n(c0_sys_clk_n),
@@ -439,7 +459,7 @@ mem_driver  mem_driver_inst(
 //.c1_ddr3_dm(c1_ddr3_dm),
 .c1_ddr3_odt(c1_ddr3_odt),
 //.c1_ui_clk(c1_ui_clk),
-.c1_init_calib_complete(c1_init_calib_complete),
+.c1_init_calib_complete(ddr_init_calib_complete[0][DDR_CHANNEL1]),
   // Differential system clocks
 .c1_sys_clk_p(c1_sys_clk_p),
 .c1_sys_clk_n(c1_sys_clk_n),
@@ -540,52 +560,8 @@ mem_driver  mem_driver_inst(
 
 
 /*
- * DMA
- */
-
-//Axi Lite Control Bus
-axi_lite        axil_control();
-
-reg led_light;
-assign led[5] = pcie_aresetn; //led_light;
-
-always @(posedge pcie_clk)
-begin 
-    if (~pcie_aresetn) begin
-        led_light <= 1'b0;
-    end
-    else begin
-        /*if (pcie_axil_wvalid) begin
-            led_light <= ~led_light;
-        end*/
-    end
-end
-
-
-/*
- * DMA Interface
- */
-
-wire        c2h_dsc_byp_load_0;
-wire        c2h_dsc_byp_ready_0;
-wire[63:0]  c2h_dsc_byp_addr_0;
-wire[31:0]  c2h_dsc_byp_len_0;
-
-wire        h2c_dsc_byp_load_0;
-wire        h2c_dsc_byp_ready_0;
-wire[63:0]  h2c_dsc_byp_addr_0;
-wire[31:0]  h2c_dsc_byp_len_0;
-
-
-axi_stream  axis_dma_c2h();
-axi_stream  axis_dma_h2c();
-
-/*
  * DMA Driver
  */
-wire[7:0] c2h_sts_0;
-wire[7:0] h2c_sts_0;
-
 dma_driver dma_driver_inst (
   .sys_clk(pcie_ref_clk),                                              // input wire sys_clk
   .sys_rst_n(perst_n),                                          // input wire sys_rst_n
@@ -647,11 +623,14 @@ os os_inst(
     .net_clk(net_clk),
     .net_aresetn(net_aresetn),
 
+    .user_clk(user_clk),
+    .user_aresetn(user_aresetn),
+
     //Axi Lite Control
     .s_axil_control         (axil_control),
 
     //DDR
-    .ddr_calib_complete(ddr3_calib_complete),
+    .ddr_calib_complete(ddr_calib_complete),
 
     .m_axi_awid(s_axi_awid),
     .m_axi_awaddr(s_axi_awaddr),
@@ -711,8 +690,8 @@ os os_inst(
     .c2h_sts_0(c2h_sts_0),
     .h2c_sts_0(h2c_sts_0)
 
-
 );
+
 endmodule
 
 `default_nettype wire
