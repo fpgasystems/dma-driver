@@ -31,9 +31,8 @@
 
 `include "os_types.svh"
 
-//import OStypes::*
-
-module dma_example_top(
+module dma_example_top
+(
     // 156.25 MHz clock in
     input wire                           xphy_refclk_p,
     input wire                           xphy_refclk_n,
@@ -110,7 +109,8 @@ module dma_example_top(
     output wire[1:0]                     dram_on,
 `endif
     input wire                           usr_sw,
-    output wire[5:0]                     led);
+    output wire[5:0]                     led
+);
 
 
 /*
@@ -127,10 +127,9 @@ wire user_aresetn;
 wire pcie_lnk_up;
 wire pcie_ref_clk;
 
-// PCIe usser clock & reset
+// PCIe user clock & reset
 wire pcie_clk;
 wire pcie_aresetn;
-
 
 /*
  * DMA Signals
@@ -153,7 +152,6 @@ axi_stream  axis_dma_h2c();
 
 wire[7:0] c2h_sts_0;
 wire[7:0] h2c_sts_0;
-
 
 /*
  * Network Signals
@@ -302,6 +300,7 @@ assign led[3] = led_pcie_clk[LED_CTR_WIDTH-1];
 assign led[4] = led_net_clk[LED_CTR_WIDTH-1];
 assign led[5] = led_ddr_clk[LED_CTR_WIDTH-1];
 
+
 /*
  * 10G Network Interface Module
  */
@@ -358,12 +357,9 @@ adm7v3_10g_interface n10g_interface_inst (
 /*
  * Memory Interface
  */
-
-`ifdef USE_DDR
 localparam C0_C_S_AXI_ID_WIDTH = 1;
 localparam C0_C_S_AXI_ADDR_WIDTH = 32;
 localparam C0_C_S_AXI_DATA_WIDTH = 512;
-
 
 wire[NUM_DDR_CHANNELS-1:0] mem_clk;
 wire[NUM_DDR_CHANNELS-1:0] mem_aresetn;
@@ -409,6 +405,7 @@ wire [1:0]                              s_axi_rresp  [NUM_DDR_CHANNELS-1:0];
 wire[NUM_DDR_CHANNELS-1:0]                                    s_axi_rlast;
 wire[NUM_DDR_CHANNELS-1:0]                                    s_axi_rvalid;
 
+`ifdef USE_DDR
 mem_driver  mem_driver_inst(
 .sys_rst(perst_n & pok_dram),
 
@@ -555,7 +552,11 @@ mem_driver  mem_driver_inst(
 );
 
 `else
-//TODO??
+//A mem_clk is necessary for the DDR controller
+assign mem_clk[DDR_CHANNEL0] = pcie_clk;
+assign mem_aresetn[DDR_CHANNEL0] = pcie_aresetn;
+assign mem_clk[DDR_CHANNEL1] = pcie_clk;
+assign mem_aresetn[DDR_CHANNEL1] = pcie_aresetn;
 `endif
 
 
@@ -615,7 +616,13 @@ dma_driver dma_driver_inst (
 /*
  * Operating System (not board-specific)
  */
-os os_inst(
+os #(
+`ifdef USE_DDR
+    .ENABLE_DDR(1)
+`else
+    .ENABLE_DDR(0)
+`endif
+) os_inst(
     .pcie_clk(pcie_clk),
     .pcie_aresetn(pcie_aresetn),
     .mem_clk(mem_clk),

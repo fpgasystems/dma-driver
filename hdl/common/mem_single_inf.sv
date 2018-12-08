@@ -161,8 +161,8 @@ axis_data_fifo_512_cc axis_read_data_fifo_mem (
  );
     end
  else begin
-     assign s_axis_mem_write.ready = 1'b1;
-     assign m_axis_mem_read.valid = 1'b0;
+     assign s_axis_mem_write_data.ready = 1'b1;
+     assign m_axis_mem_read_data.valid = 1'b0;
  end
 endgenerate
 

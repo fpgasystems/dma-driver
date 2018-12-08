@@ -349,8 +349,6 @@ network_module network_module_inst
 /*
  * Memory Interface
  */
-
-`ifdef USE_DDR
 localparam C0_C_S_AXI_ID_WIDTH = 1;
 localparam C0_C_S_AXI_ADDR_WIDTH = 32;
 localparam C0_C_S_AXI_DATA_WIDTH = 512;
@@ -399,7 +397,7 @@ wire [1:0]                              s_axi_rresp  [NUM_DDR_CHANNELS-1:0];
 wire[NUM_DDR_CHANNELS-1:0]                                    s_axi_rlast;
 wire[NUM_DDR_CHANNELS-1:0]                                    s_axi_rvalid;
 
-
+`ifdef USE_DDR
 mem_driver  mem_driver0_inst(
 
 /* I/O INTERFACE */
@@ -545,9 +543,12 @@ mem_driver  mem_driver1_inst(
 .s_axi_rvalid(s_axi_rvalid[DDR_CHANNEL1])
 
 );
-
 `else
-//TODO??
+//A mem_clk is necessary for the DDR controller
+assign mem_clk[DDR_CHANNEL0] = pcie_clk;
+assign mem_aresetn[DDR_CHANNEL0] = pcie_aresetn;
+assign mem_clk[DDR_CHANNEL1] = pcie_clk;
+assign mem_aresetn[DDR_CHANNEL1] = pcie_aresetn;
 `endif
 
 
@@ -608,7 +609,13 @@ dma_driver dma_driver_inst (
 /*
  * Operating System (not board-specific)
  */
-os os_inst(
+os #(
+`ifdef USE_DDR
+    .ENABLE_DDR(1)
+`else
+    .ENABLE_DDR(0)
+`endif
+) os_inst(
     .pcie_clk(pcie_clk),
     .pcie_aresetn(pcie_aresetn),
     .mem_clk(mem_clk),

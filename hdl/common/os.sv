@@ -27,14 +27,12 @@
 `timescale 1ns / 1ps
 `default_nettype none
 
-//import OStypes::*;
 `include "os_types.svh"
-
-`define USE_DDR
 
 module os #(
     parameter AXI_ID_WIDTH = 1,
-    parameter NUM_DDR_CHANNELS = 2 //TODO move
+    parameter NUM_DDR_CHANNELS = 2, //TODO move
+    parameter ENABLE_DDR = 1
 ) (
     input wire      pcie_clk,
     input wire      pcie_aresetn,
@@ -182,13 +180,13 @@ benchmark_role user_role(
 /*
  * Memory Interface
  */
-`ifdef USE_DDR
 //TODO move
 localparam DDR_CHANNEL0 = 0;
 localparam DDR_CHANNEL1 = 1;
 
-
-mem_single_inf  mem_inf_inst0(
+mem_single_inf #(
+    .ENABLE(ENABLE_DDR)
+) mem_inf_inst0 (
 .user_clk(user_clk),
 .user_aresetn(ddr_calib_complete),
 .pcie_clk(pcie_clk), //TODO remove
@@ -257,7 +255,9 @@ mem_single_inf  mem_inf_inst0(
 .m_axi_rvalid(m_axi_rvalid[DDR_CHANNEL0])
 );
 
-mem_single_inf  mem_inf_inst1(
+mem_single_inf #(
+    .ENABLE(ENABLE_DDR)
+) mem_inf_inst1 (
 .user_clk(user_clk),
 .user_aresetn(ddr_calib_complete),
 .pcie_clk(pcie_clk),
@@ -325,9 +325,7 @@ mem_single_inf  mem_inf_inst1(
 .m_axi_rlast(m_axi_rlast[DDR_CHANNEL1]),
 .m_axi_rvalid(m_axi_rvalid[DDR_CHANNEL1])
 );
-`else
-//TODO
-`endif
+
 
  
 /*
