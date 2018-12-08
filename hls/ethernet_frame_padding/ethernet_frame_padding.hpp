@@ -1,7 +1,7 @@
 #ifndef ETH_FRAME_PADDING
 #define ETH_FRAME_PADDING
 
-#include "../tcp_ip.hpp"
+#include "../axi_utils.hpp"
 
 
 void ethernet_fram_padding(	hls::stream<axiWord>&			dataIn,
