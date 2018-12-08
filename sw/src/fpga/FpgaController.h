@@ -139,10 +139,10 @@ class FpgaController
       uint64_t runDmaRandomWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength, uint32_t strideLength);
       uint64_t runDmaRandomReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength, uint32_t strideLength);
 
-      uint64_t runMemSeqWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength);
-      uint64_t runMemSeqReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength);
-      uint64_t runMemRandomWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength, uint32_t strideLength);
-      uint64_t runMemRandomReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength, uint32_t strideLength);
+      uint64_t runDramSeqWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength, uint8_t channel);
+      uint64_t runDramSeqReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength, uint8_t channel);
+      uint64_t runDramRandomWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength, uint32_t strideLength, uint8_t channel);
+      uint64_t runDramRandomReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAcceses, uint32_t chunkLength, uint32_t strideLength, uint8_t channel);
 
 
 
@@ -158,7 +158,7 @@ class FpgaController
 
    private:
       uint64_t runDmaBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t  numberOfAccesses, uint32_t chunkLength, uint32_t strideLength, memoryOp op);
-      uint64_t runMemBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t  numberOfAccesses, uint32_t chunkLength, uint32_t strideLength, memoryOp op);
+      uint64_t runDramBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t  numberOfAccesses, uint32_t chunkLength, uint32_t strideLength, memoryOp op, uint8_t channel);
 
 
       void writeReg(userCtrlAddr, uint32_t value);

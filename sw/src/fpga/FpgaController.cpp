@@ -122,27 +122,27 @@ uint64_t FpgaController::runDmaBenchmark(uint64_t baseAddr, uint64_t memorySize,
 #endif
 }
 
-uint64_t FpgaController::runMemSeqWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength)
+uint64_t FpgaController::runDramSeqWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength, uint8_t channel)
 {
-   runMemBenchmark(baseAddr, memorySize, numberOfAccesses, chunkLength, 0, memoryOp::WRITE);
+   runDramBenchmark(baseAddr, memorySize, numberOfAccesses, chunkLength, 0, memoryOp::WRITE, channel);
 }
 
-uint64_t FpgaController::runMemSeqReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength)
+uint64_t FpgaController::runDramSeqReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength, uint8_t channel)
 {
-   runMemBenchmark(baseAddr, memorySize, numberOfAccesses, chunkLength, 0, memoryOp::READ);
+   runDramBenchmark(baseAddr, memorySize, numberOfAccesses, chunkLength, 0, memoryOp::READ, channel);
 }
 
-uint64_t FpgaController::runMemRandomWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength, uint32_t strideLength)
+uint64_t FpgaController::runDramRandomWriteBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength, uint32_t strideLength, uint8_t channel)
 {
-   runMemBenchmark(baseAddr, memorySize, numberOfAccesses, chunkLength, strideLength, memoryOp::WRITE);
+   runDramBenchmark(baseAddr, memorySize, numberOfAccesses, chunkLength, strideLength, memoryOp::WRITE, channel);
 }
 
-uint64_t FpgaController::runMemRandomReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength, uint32_t strideLength)
+uint64_t FpgaController::runDramRandomReadBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength, uint32_t strideLength, uint8_t channel)
 {
-   runMemBenchmark(baseAddr, memorySize, numberOfAccesses, chunkLength, strideLength, memoryOp::READ);
+   runDramBenchmark(baseAddr, memorySize, numberOfAccesses, chunkLength, strideLength, memoryOp::READ, channel);
 }
 
-uint64_t FpgaController::runMemBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength, uint32_t strideLength, memoryOp op)
+uint64_t FpgaController::runDramBenchmark(uint64_t baseAddr, uint64_t memorySize, uint32_t numberOfAccesses, uint32_t chunkLength, uint32_t strideLength, memoryOp op, uint8_t channel)
 {
    std::lock_guard<std::mutex> guard(ctrl_mutex);
 #ifdef PRINT_DEBUG
@@ -156,7 +156,7 @@ uint64_t FpgaController::runMemBenchmark(uint64_t baseAddr, uint64_t memorySize,
    writeReg(userCtrlAddr::DDR_BENCH, (uint32_t) numberOfAccesses);
    writeReg(userCtrlAddr::DDR_BENCH, (uint32_t) chunkLength);
    writeReg(userCtrlAddr::DDR_BENCH, (uint32_t) strideLength);
-   writeReg(userCtrlAddr::DDR_BENCH, (uint32_t) op);
+   writeReg(userCtrlAddr::DDR_BENCH, (((uint32_t) channel) << 1) | ((uint32_t) op));
 
    //retrieve number of execution cycles
    
