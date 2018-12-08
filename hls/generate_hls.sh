@@ -1,6 +1,6 @@
 #!/bin/bash
 
-IP_CORES=(tlb mem_write_cmd_page_boundary_check_512 dma_bench)
+IP_CORES=(tlb mem_write_cmd_page_boundary_check_512 dma_bench ethernet_frame_padding)
 
 HLS_DIR="$PWD"
 
