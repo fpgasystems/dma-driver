@@ -109,63 +109,60 @@ module dma_example_top
     output wire [7:0]       led
 );
 
+
+/*
+ * Clock & Reset Signals
+ */
 wire sys_reset_n;
-wire net_clk;
-wire net_aresetn;
-wire network_init;
-
-wire [2:0] gt_loopback_in_0; 
-wire[3:0] user_rx_reset;
-wire[3:0] user_tx_reset;
-wire gtpowergood_out;
-
+// User logic clock & reset
 wire user_clk;
 wire user_aresetn;
 
-//// For other GT loopback options please change the value appropriately
-//// For example, for internal loopback gt_loopback_in[2:0] = 3'b010;
-//// For more information and settings on loopback, refer GT Transceivers user guide
-
-  wire dclk;
-     IBUFDS #(
-     .DQS_BIAS("FALSE")  // (FALSE, TRUE)
-  )
-  dclk_BUFG_inst (
-     .O(dclk),   // 1-bit output: Buffer output
-     .I(dclk_p),   // 1-bit input: Diff_p buffer input (connect directly to top-level port)
-     .IB(dclk_n)  // 1-bit input: Diff_n buffer input (connect directly to top-level port)
-  );
-
-  /*wire uclk;
-     IBUFDS #(
-     .DQS_BIAS("FALSE")  // (FALSE, TRUE)
-  )
-  uclk_BUFG_inst (
-     .O(uclk),   // 1-bit output: Buffer output
-     .I(uclk_p),   // 1-bit input: Diff_p buffer input (connect directly to top-level port)
-     .IB(uclk_n)  // 1-bit input: Diff_n buffer input (connect directly to top-level port)
-  );*/
-
-BUFG bufg_aresetn(
-   .I(network_init),
-   .O(net_aresetn)
-);
-
-
-
-assign led[0] = gtpowergood_out;
-assign led[1] = network_init;
-
-// PCIe signals
+/*
+ * PCIe Signals
+ */
 wire pcie_lnk_up;
 wire pcie_ref_clk;
 wire pcie_ref_clk_gt;
 
+// PCIe user clock & reset
+wire pcie_clk;
+wire pcie_aresetn;
 
+/*
+ * DMA Signals
+ */
+//Axi Lite Control Bus
+axi_lite        axil_control();
+
+wire        c2h_dsc_byp_load_0;
+wire        c2h_dsc_byp_ready_0;
+wire[63:0]  c2h_dsc_byp_addr_0;
+wire[31:0]  c2h_dsc_byp_len_0;
+
+wire        h2c_dsc_byp_load_0;
+wire        h2c_dsc_byp_ready_0;
+wire[63:0]  h2c_dsc_byp_addr_0;
+wire[31:0]  h2c_dsc_byp_len_0;
+
+axi_stream  axis_dma_c2h();
+axi_stream  axis_dma_h2c();
+
+wire[7:0] c2h_sts_0;
+wire[7:0] h2c_sts_0;
 
 /*
  * Network Signals
  */
+wire[3:0] user_rx_reset;
+wire[3:0] user_tx_reset;
+wire gtpowergood_out;
+wire network_init;
+
+ // Network user clock & reset
+wire net_clk;
+wire net_aresetn;
+
 wire        axis_net_rx_data_tvalid;
 wire        axis_net_rx_data_tready;
 wire[63:0]  axis_net_rx_data_tdata;
@@ -179,17 +176,96 @@ wire[7:0]   axis_net_tx_data_tkeep;
 wire        axis_net_tx_data_tlast;
 
 
-
-
- 
 assign axis_net_rx_data_tready = 1'b1;
 assign axis_net_tx_data_tvalid = 1'b0;
 
 /*
+ * DDR Signals
+ */
+localparam DDR_CHANNEL0 = 0;
+localparam DDR_CHANNEL1 = 1;
+localparam NUM_DDR_CHANNELS = 2;//TODO Move
+
+logic[NUM_DDR_CHANNELS-1:0] ddr_init_calib_complete [2:0];
+wire ddr_calib_complete;
+
+//registers for crossing clock domains (from DDR clock to User Clock)
+always @(posedge user_clk)
+    if (~user_aresetn) begin
+        ddr_init_calib_complete[1] <= '0;
+        ddr_init_calib_complete[2] <= '0;
+    end
+    else begin
+        ddr_init_calib_complete[1] <= ddr_init_calib_complete[0];
+        ddr_init_calib_complete[2] <= ddr_init_calib_complete[1];
+    end
+
+assign ddr_calib_complete = &ddr_init_calib_complete[2];
+
+
+/*
+ * Clock Generation
+ */
+wire dclk;
+    IBUFDS #(
+    .DQS_BIAS("FALSE")  // (FALSE, TRUE)
+)
+dclk_BUFG_inst (
+    .O(dclk),   // 1-bit output: Buffer output
+    .I(dclk_p),   // 1-bit input: Diff_p buffer input (connect directly to top-level port)
+    .IB(dclk_n)  // 1-bit input: Diff_n buffer input (connect directly to top-level port)
+);
+
+//Network reset
+BUFG bufg_aresetn(
+    .I(network_init),
+    .O(net_aresetn)
+);
+//PCIe ref clock
+IBUFDS_GTE4 pcie_ibuf_inst (
+    .O(pcie_ref_clk_gt),         // 1-bit output: Refer to Transceiver User Guide
+    .ODIV2(pcie_ref_clk),            // 1-bit output: Refer to Transceiver User Guide
+    .CEB(1'b0),          // 1-bit input: Refer to Transceiver User Guide
+    .I(pcie_clk_p),        // 1-bit input: Refer to Transceiver User Guide
+    .IB(pcie_clk_n)        // 1-bit input: Refer to Transceiver User Guide
+);
+
+/*
+ * LEDs
+ */
+localparam  LED_CTR_WIDTH           = 26;
+logic [LED_CTR_WIDTH-1:0]           led_pcie_clk;
+logic [LED_CTR_WIDTH-1:0]           led_net_clk;
+logic [LED_CTR_WIDTH-1:0]           led_ddr_clk;
+
+always @(posedge pcie_clk)
+begin
+    led_pcie_clk <= led_pcie_clk + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
+end
+
+always @(posedge net_clk)
+begin
+    led_net_clk <= led_net_clk + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
+end
+
+`ifdef USE_DDR
+always @(posedge mem_clk[DDR_CHANNEL0])
+begin
+    led_ddr_clk <= led_ddr_clk + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
+end
+`endif
+
+assign led[0] = pcie_lnk_up;
+assign led[1] = network_init;
+assign led[2] = ddr_calib_complete;
+assign led[3] = led_pcie_clk[LED_CTR_WIDTH-1];
+assign led[4] = led_net_clk[LED_CTR_WIDTH-1];
+assign led[5] = led_ddr_clk[LED_CTR_WIDTH-1];
+
+
+/*
  * 10G Network Interface Module
  */
-  
-
 network_module network_module_inst
 (
     .dclk (dclk),
@@ -269,97 +345,7 @@ network_module network_module_inst
 );
 
 
-
-
-
-wire c0_init_calib_complete;
-wire c1_init_calib_complete;
-
-// PCIe usser clock & reset
-wire pcie_clk;
-wire pcie_aresetn;
-
-
-wire ddr_calib_complete;
-
-
-//registers for crossing clock domains (from 233MHz to 156.25MHz)
-reg c0_init_calib_complete_r1;
-reg c0_init_calib_complete_r2;
-reg c1_init_calib_complete_r1;
-reg c1_init_calib_complete_r2;
-
-
-localparam  LED_CTR_WIDTH           = 26;
-reg     [LED_CTR_WIDTH-1:0]           l0_ctr;
-reg     [LED_CTR_WIDTH-1:0]           l1_ctr;
-reg     [LED_CTR_WIDTH-1:0]           l2_ctr;
-reg     [LED_CTR_WIDTH-1:0]           l3_ctr;
-
-always @(posedge net_clk)
-begin
-    l0_ctr <= l0_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
-end
-
-`ifdef USE_DDR
-always @(posedge mem_clk[DDR_CHANNEL0])
-begin
-    l1_ctr <= l1_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
-end
-`endif
-/*always @(posedge clk_ref_200)
-begin
-    l2_ctr <= l2_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
-end*/
-always @(posedge pcie_clk)
-begin
-    l3_ctr <= l3_ctr + {{(LED_CTR_WIDTH-1){1'b0}}, 1'b1};
-end
-
-
-
-/*assign led[0] = network_init & pok_dram & init_calib_complete;
-assign led[1] = pcie_lnk_up;*/
-assign led[2] = l0_ctr[LED_CTR_WIDTH-1];
-assign led[3] = l3_ctr[LED_CTR_WIDTH-1];
-assign led[4] = perst_n & net_aresetn;
-assign led[5] = l1_ctr[LED_CTR_WIDTH-1];
-
    
-   /*always @(posedge aclk) begin
-        reset156_25_n_r1 <= perst_n & pok_dram & network_init;
-        reset156_25_n_r2 <= reset156_25_n_r1;
-        aresetn <= reset156_25_n_r2;
-   end*/
-  
-always @(posedge user_clk)
-    if (~user_aresetn) begin
-        c0_init_calib_complete_r1 <= 1'b0;
-        c0_init_calib_complete_r2 <= 1'b0;
-        c1_init_calib_complete_r1 <= 1'b0;
-        c1_init_calib_complete_r2 <= 1'b0;
-    end
-    else begin
-        c0_init_calib_complete_r1 <= c0_init_calib_complete;
-        c0_init_calib_complete_r2 <= c0_init_calib_complete_r1;
-        c1_init_calib_complete_r1 <= c1_init_calib_complete;
-        c1_init_calib_complete_r2 <= c1_init_calib_complete_r1;
-    end
-
-assign ddr_calib_complete = c0_init_calib_complete_r2 & c1_init_calib_complete_r2;
-
-
-
-
-
-IBUFDS_GTE4 pcie_ibuf_inst (
-    .O(pcie_ref_clk_gt),         // 1-bit output: Refer to Transceiver User Guide
-    .ODIV2(pcie_ref_clk),            // 1-bit output: Refer to Transceiver User Guide
-    .CEB(1'b0),          // 1-bit input: Refer to Transceiver User Guide
-    .I(pcie_clk_p),        // 1-bit input: Refer to Transceiver User Guide
-    .IB(pcie_clk_n)        // 1-bit input: Refer to Transceiver User Guide
-);
-
 /*
  * Memory Interface
  */
@@ -368,10 +354,6 @@ IBUFDS_GTE4 pcie_ibuf_inst (
 localparam C0_C_S_AXI_ID_WIDTH = 1;
 localparam C0_C_S_AXI_ADDR_WIDTH = 32;
 localparam C0_C_S_AXI_DATA_WIDTH = 512;
-
-localparam DDR_CHANNEL0 = 0;
-localparam DDR_CHANNEL1 = 1;
-localparam NUM_DDR_CHANNELS = 2;//TODO Move
 
 wire[NUM_DDR_CHANNELS-1:0] mem_clk;
 wire[NUM_DDR_CHANNELS-1:0] mem_aresetn;
@@ -421,9 +403,6 @@ wire[NUM_DDR_CHANNELS-1:0]                                    s_axi_rvalid;
 mem_driver  mem_driver0_inst(
 
 /* I/O INTERFACE */
-// differential iodelayctrl clk (reference clock)
-//.clk_ref_p(clk_ref_p),
-//.clk_ref_n(clk_ref_n),
 // Differential system clocks
 .c0_sys_clk_p(c0_sys_clk_p),
 .c0_sys_clk_n(c0_sys_clk_n),
@@ -445,8 +424,7 @@ mem_driver  mem_driver0_inst(
 .c0_ddr4_ck_c(c0_ddr4_ck_c),                              // output wire [0 : 0] c0_ddr4_ck_c
 .c0_ddr4_ck_t(c0_ddr4_ck_t),                              // output wire [0 : 0] c0_ddr4_ck_t
 
-//.c0_ui_clk(c0_ui_clk),
-.c0_init_calib_complete(c0_init_calib_complete),
+.c0_init_calib_complete(ddr_init_calib_complete[0][DDR_CHANNEL0]),
 
 
 /* OS INTERFACE */
@@ -498,9 +476,6 @@ mem_driver  mem_driver0_inst(
 mem_driver  mem_driver1_inst(
 
 /* I/O INTERFACE */
-// differential iodelayctrl clk (reference clock)
-//.clk_ref_p(clk_ref_p),
-//.clk_ref_n(clk_ref_n),
 // Differential system clocks
 .c0_sys_clk_p(c1_sys_clk_p),
 .c0_sys_clk_n(c1_sys_clk_n),
@@ -522,8 +497,7 @@ mem_driver  mem_driver1_inst(
 .c0_ddr4_ck_c(c1_ddr4_ck_c),                              // output wire [0 : 0] c0_ddr4_ck_c
 .c0_ddr4_ck_t(c1_ddr4_ck_t),                              // output wire [0 : 0] c0_ddr4_ck_t
 
-//.c0_ui_clk(c1_ui_clk),
-.c0_init_calib_complete(c1_init_calib_complete),
+.c0_init_calib_complete(ddr_init_calib_complete[0][DDR_CHANNEL1]),
 
 
 /* OS INTERFACE */
@@ -577,42 +551,9 @@ mem_driver  mem_driver1_inst(
 `endif
 
 
-
-
-
-/*
- * DMA
- */
-
- //Axi Lite Control Bus
- axi_lite        axil_control();
-
-
-
-/*
- * DMA Interface
- */
-
-wire        c2h_dsc_byp_load_0;
-wire        c2h_dsc_byp_ready_0;
-wire[63:0]  c2h_dsc_byp_addr_0;
-wire[31:0]  c2h_dsc_byp_len_0;
-
-wire        h2c_dsc_byp_load_0;
-wire        h2c_dsc_byp_ready_0;
-wire[63:0]  h2c_dsc_byp_addr_0;
-wire[31:0]  h2c_dsc_byp_len_0;
-
-
-axi_stream  axis_dma_c2h();
-axi_stream  axis_dma_h2c();
-
 /*
  * DMA Driver
  */
-wire[7:0] c2h_sts_0;
-wire[7:0] h2c_sts_0;
-
 dma_driver dma_driver_inst (
   .sys_clk(pcie_ref_clk),                                              // input wire sys_clk
   .sys_clk_gt(pcie_ref_clk_gt),
@@ -674,6 +615,7 @@ os os_inst(
     .mem_aresetn(mem_aresetn),
     .net_clk(net_clk),
     .net_aresetn(net_aresetn),
+
     .user_clk(user_clk),
     .user_aresetn(user_aresetn),
 
