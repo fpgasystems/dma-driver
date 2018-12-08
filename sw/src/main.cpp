@@ -45,7 +45,9 @@ int main(int argc, char *argv[]) {
                                     ("strideLength,s", boost::program_options::value<unsigned int>(), "Stride Length between memroy accesses")
                                     ("isWrite", boost::program_options::value<bool>(), "is write")
                                     ("testDDR", boost::program_options::value<bool>(), "use DDR")
+                                    ("ddrChannel", boost::program_options::value<unsigned int>(), "DDR channel, default: 0")
                                     ("clockPeriod,p", boost::program_options::value<unsigned int>(), "Clock period of the FPGA, default: 4ns");
+
    boost::program_options::variables_map commandLineArgs;
    boost::program_options::store(boost::program_options::parse_command_line(argc, argv, programDescription), commandLineArgs);
    boost::program_options::notify(commandLineArgs);
@@ -63,6 +65,7 @@ int main(int argc, char *argv[]) {
    double clockPeriod = 4;
    bool isWrite = true;
    bool useDDR = false;
+   uint8_t ddrChannel = 0;
 
    if (commandLineArgs.count("memorySize") > 0) {
       memorySize = commandLineArgs["memorySize"].as<unsigned long>();
@@ -84,6 +87,9 @@ int main(int argc, char *argv[]) {
    }
    if (commandLineArgs.count("testDDR") > 0) {
       useDDR = commandLineArgs["testDDR"].as<bool>();
+   }
+   if (commandLineArgs.count("ddrChannel") > 0) {
+      ddrChannel = commandLineArgs["ddrChannel"].as<unsigned int>();
    }
  
    bool isRandom = (strideLength != 0);
@@ -127,15 +133,15 @@ int main(int argc, char *argv[]) {
    {
       if (!isRandom) {
          if (isWrite) {
-            cycles = controller->runMemSeqWriteBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength);
+            cycles = controller->runDramSeqWriteBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength, ddrChannel);
          } else {
-            cycles = controller->runMemSeqReadBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength);
+            cycles = controller->runDramSeqReadBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength, ddrChannel);
          }
       } else {
          if (isWrite) {
-            cycles = controller->runMemRandomWriteBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength, strideLength);
+            cycles = controller->runDramRandomWriteBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength, strideLength, ddrChannel);
          } else {
-            cycles = controller->runMemRandomReadBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength, strideLength);
+            cycles = controller->runDramRandomReadBenchmark((uint64_t) baseAddr, memorySize, accesses, chunkLength, strideLength, ddrChannel);
          }
       }
    }
